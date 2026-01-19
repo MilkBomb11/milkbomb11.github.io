@@ -75,7 +75,7 @@ p64(rdx_gadget) + p64(0x400) + p64(read_plt) +
 p64(memset_got_addr)
         </code></pre>
         <p>
-            Our goal is to call <code>read(0x0, memset's got addr, 0x400)</code> so that we can overwrite into the got entry of <code>memset</code> with shellcode.
+            Our goal is to call <code>read(0x0, memset's got addr, 0x400)</code> so that we can overwrite the got entry of <code>memset</code> with shellcode.
             The first three lines do that, and the fourth line returns to the got entry of <code>memset</code>, where our shellcode will be waiting to be executed.
             The entire exploit code is as below.
         </p>
