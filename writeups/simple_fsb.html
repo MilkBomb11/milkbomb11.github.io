@@ -15,7 +15,75 @@
 
     <main>
 
-        <p>The problem can be seen <a href="https://dreamhack.io/wargame/writeups/41281">here</a>.</p>
+        <p>The problem can be seen <a href="https://dreamhack.io/wargame/writeups/41281">here</a>.<br/>
+            It did not provide any soure code for the program so I had to use ghidra to reverse it. Below is the decompiled code of the program.<p></p>
+        <pre><code>
+void flag(void)
+
+{
+  int __fd;
+  ssize_t sVar1;
+  
+  __fd = open("./flag",0);
+  if (__fd == -1) {
+    fwrite("flag open error\n",1,0x10,stderr);
+                    /* WARNING: Subroutine does not return */
+    exit(0);
+  }
+  sVar1 = read(__fd,flag_buf,0x100);
+  if (sVar1 == -1) {
+    fwrite("flag read error\n",1,0x10,stderr);
+                    /* WARNING: Subroutine does not return */
+    exit(0);
+  }
+  close(__fd);
+  return;
+}
+
+void fsb(void)
+
+{
+  long %fs:;
+  char buf [88];
+  long canary;
+  
+  canary = *(long *)(%fs: + 0x28);
+  read(0,buf,0x50);
+  printf(buf);
+  if (canary != *(long *)(%fs: + 0x28)) {
+                    /* WARNING: Subroutine does not return */
+    __stack_chk_fail();
+  }
+  return;
+}
+
+
+void main(EVP_PKEY_CTX *param_1)
+
+{
+  long in_FS_OFFSET;
+  int cmd;
+  undefined8 local_10;
+  
+  local_10 = *(undefined8 *)(in_FS_OFFSET + 0x28);
+  init(param_1);
+  while( true ) {
+    printf("> ");
+    __isoc99_scanf(&"%d",&cmd);
+    if (cmd == 3) break;
+    if (cmd &lt; 4) {
+      if (cmd == 1) {
+        flag();
+      }
+      else if (cmd == 2) {
+        fsb();
+      }
+    }
+  }
+                    /* WARNING: Subroutine does not return */
+  exit(0);
+}
+        </code></pre>
         <p>
     The program uses PIE to randomize the location of the code section, the data section, and the uninitialized data section(.bss). 
     The good news is that these three sections are all guaranteed to be contiguous to each other in the exact same order regardless of PIE. 
