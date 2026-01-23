@@ -49,6 +49,7 @@ section {
 /* Link Styling */
 ul {
     list-style-type: none; /* Removes bullet points */
+    padding-left: 2em;
 }
 
 li {

