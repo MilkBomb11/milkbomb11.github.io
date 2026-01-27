@@ -114,7 +114,7 @@ void main()
             If you put a single quote as a input for <code>content</code>, <code>echo %s > /home/Dnote/note</code> returns an error, which causes <code>fopen("/home/Dnote/note", "r")</code>
             to fail and lets <code>size</code> be 0 when <code>read(0, message, size - 1)</code> is called. An integer underflow on the <code>size</code> field of <code>read</code>
             happens, allowing you to perform a buffer overflow. I tried inputting <code>$(printf %2048s a)</code> as well but the server didn't allow the creation of a new file.
-            The program has no PIE enabled, no stack cnary, and has partial RELRO, so my first thought was to send an ROP chain.
+            The program has no PIE enabled, no stack canary, and has partial RELRO, so my first thought was to send an ROP chain.
             Although the problem did not provide me with a libc, I believed calling <code>system("/bin/sh")</code> was possible 
             without getting libc's base since <code>system</code> was present in <code>.plt</code> because the program itself used it.
             So my plan was to call <code>read(0x0, GOT of puts, 0x80)</code> and overwrite the GOT entry of <code>puts</code> with 
