@@ -133,7 +133,7 @@ sleep(0.1)
 p.send("/bin/sh\x00")
 p.interactive()
         </code></pre>
-        <p>Unfortunately, there was no gadget for <code>%rdi</code> which is why it failed.</p>
+        <p>Unfortunately, there was no gadget for <code>%rdx</code> which is why it failed.</p>
         <p>So instead I leaked the GOT entry of <code>puts</code> and <code>read</code> via <code>puts</code> using ROP and plugged them into  <a href="https://libc.rip/">this site</a> 
         to get what version of  <code>libc</code> the server was using. With this I was able to obtain the offset of <code>"/bin/sh"</code> within that <code>libc</code>
         and construct an ROP chain to call <code>system("/bin/sh")</code>.
