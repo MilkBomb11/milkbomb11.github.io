@@ -38,7 +38,6 @@ p {
     margin-bottom: 1.5rem;
     overflow-wrap: anywhere;
     hyphens: auto;
-    word-break: break-all;
     text-align: left;
 }
 
