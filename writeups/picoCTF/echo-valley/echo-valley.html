@@ -88,7 +88,8 @@ int main()
         <img src="main-assembly-dump.png" width="400px" height="auto">
         <p>
             I then constructed an exploit that would first leak the return address and saved frame pointer of <code>echo_valley</code>, and then subsequently
-            overwrite each byte of the return address via the payload below. 
+            overwrite each byte of the return address via the payload below, where the three 0s indicate the value to overwrite with, and the last 8 bytes represent
+            the target address. 
         </p>
         <img src="buffer.png" width="600px" height="auto">
         <p>The exploit code is as below.</p>
