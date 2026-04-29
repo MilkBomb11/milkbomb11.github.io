@@ -104,3 +104,7 @@ code {
     color: #333;               /* Dark text color */
     overflow-wrap: anywhere;
 }
+
+img {
+    display: block;
+}
