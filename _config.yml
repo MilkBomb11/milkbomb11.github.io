@@ -1,0 +1,11 @@
+title: milkbomb
+baseurl: ""
+exclude:
+  - vendor/
+  - README.md
+
+defaults:
+    - scope:
+        path: writeups
+      values:
+        layout: writeup

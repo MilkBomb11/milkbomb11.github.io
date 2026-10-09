@@ -1,22 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>The binary can be downloaded <a href="https://artifacts.picoctf.net/c_mimas/82/format-string-1">here</a>.</p>
-        <p>The source code is as below.</p>
-        <pre><code>
+---
+title: format string 1
+---
+<p>The binary can be downloaded <a href="https://artifacts.picoctf.net/c_mimas/82/format-string-1">here</a>.</p>
+<p>The source code is as below.</p>
+{% raw %}
+<pre><code>
 #include &lt; stdio.h &gt;
 int main() {
   char buf[1024];
@@ -59,16 +47,26 @@ int main() {
 
   return 0;
 }
-        </code></pre>
-        <p>From the source code and the disassembly I could reconstruct the stack just when <code>printf(buf)</code> was called as below.</p> 
-        <img src="stack.png" width="400px" height="auto">
-        <p>As you can see, since the flag was stored in the stack, I decided to use format string bug to leak the contents of the flag 8 bytes at a time.</p>
-        <p>
-            The exploit code is as below. The first script gets the job done but it repeatedly creates new processes to get each part of the flag.
-            This wasn't a problem for picoCTF, but for CTFs where creating a new process randomizes the flag each time, I made another
-            script which leaks the flag in one go.
-        </p>
-        <pre><code>
+</code></pre>
+{% endraw %}
+<p>
+    From the source code and the disassembly I could reconstruct the stack just when <code>printf(buf)</code> was called
+    as below.
+</p>
+<img src="stack.png" width="400px" height="auto">
+<p>
+    As you can see, since the flag was stored in the stack, I decided to use format string bug to leak the contents of
+    the flag 8 bytes at a time.
+</p>
+<p>
+    The exploit code is as below. The first script gets the job done but it repeatedly creates new processes to get each
+    part of the flag.
+    This wasn't a problem for picoCTF, but for CTFs where creating a new process randomizes the flag each time, I made
+    another
+    script which leaks the flag in one go.
+</p>
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 from pwn import *
 
@@ -89,8 +87,10 @@ def ex():
     print(acc)
 
 if __name__ == "__main__": ex()
-        </code></pre>
-        <pre><code>
+</code></pre>
+{% endraw %}
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 from pwn import *
 
@@ -108,7 +108,5 @@ def ex():
     print(b"".join(r))
     
 if __name__ == "__main__": ex()
-        </code></pre>
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}

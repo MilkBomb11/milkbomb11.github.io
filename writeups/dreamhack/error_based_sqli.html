@@ -1,27 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/412">here</a>.</p>
-        <p>
-            There are two solutions for this problem. The first one is to take advantage of the website's verbose error message and sending a GET request with
-            <code>admin' AND (SELECT 'foo' WHERE 1=1 AND EXTRACTVALUE(1, CONCAT(0x5c, (SELECT upw FROM user LIMIT 1)))) -- --</code> 
-            as the uid field. The other option is to do a conditional error based blind SQL injection. The exploit code is as below.
-
-        </p>
-        <pre><code>
+---
+title: error based sql injection
+---
+<p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/412">here</a>.</p>
+<p>
+    There are two solutions for this problem. The first one is to take advantage of the website's verbose error message and sending a GET request with
+    <code>admin' AND (SELECT 'foo' WHERE 1=1 AND EXTRACTVALUE(1, CONCAT(0x5c, (SELECT upw FROM user LIMIT 1)))) -- --</code> 
+    as the uid field. The other option is to do a conditional error based blind SQL injection. The exploit code is as below.
+</p>
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 import requests
 import urllib3
@@ -59,14 +46,12 @@ if __name__ == "__main__":
             flag += ch
             print(f"flag = {flag}")
     print(flag)
-        </code></pre>
-        <p>
-            The payload has <code>-- --</code> at the end since the target website has a MySQL DB. 
-            Also, I didn't know that MySQL handled characters in a case insensitive way, so it took me a while to realize I had to cast
-            the string into bytes before comparing it for the binary search to function properly. Also the target website didn't url-encode automatically
-            so I passed the payload into <code>params</code> to encode it instead of directly concatenating it with the url.
-            Not url-encoding it caused the query to break in some way which subsequently broke the binary search.
-        </p>
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}
+<p>
+    The payload has <code>-- --</code> at the end since the target website has a MySQL DB. 
+    Also, I didn't know that MySQL handled characters in a case insensitive way, so it took me a while to realize I had to cast
+    the string into bytes before comparing it for the binary search to function properly. Also the target website didn't url-encode automatically
+    so I passed the payload into <code>params</code> to encode it instead of directly concatenating it with the url.
+    Not url-encoding it caused the query to break in some way which subsequently broke the binary search.
+</p>

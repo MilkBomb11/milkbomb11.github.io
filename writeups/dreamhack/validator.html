@@ -1,25 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>
-The problem can be seen <a href="https://dreamhack.io/wargame/challenges/94">here</a>.<br>
-It did not provide a source code for the target program so I decompiled it via ghidra. The decompilation result is as below.
-        </p>
-        <pre><code>
-
+---
+title: validator
+---
+<p>
+    The problem can be seen <a href="https://dreamhack.io/wargame/challenges/94">here</a>.<br>
+    It did not provide a source code for the target program so I decompiled it via ghidra. The decompilation result is
+    as below.
+</p>
+{% raw %}
+<pre><code>
 undefined8 validate(long buf(in_main),ulong param_2(=128))
 {
   uint idx;
@@ -52,34 +40,49 @@ undefined8 main(void)
   validate(local_88,0x80);
   return 0;
 }
+</code></pre>
+{% endraw %}
 
-        </code></pre>
-        <p>
-            Running <code>checksec</code> on the binary shows that there were no stack canaries, PIE, and NX.
-            Examining <code>main</code>, I can see that there is a massive buffer overflow on <code>local_88</code>, which is exploitable.
-            And from the hint given from the description of the problem, every readable segment is executable, which meant that the GOT table is executable as well.
-            This leads me to think of an exploit where we employ ROP to overwrite the GOT entry of a function with shellcode which summons the shell.
-            But for that to work, <code>main</code> needs to return normally, and for it to return normally, <code>validate</code> needs to return normally, 
-            and finally for that to return normally, <code>local_88</code> of <code>main</code> needs to satisfy two conditions. 
-            The first is that local_88[0..10] must equal "DREAMHACK!", and the second one is that for i = [11..128], local_88[i] == local[i+1] + 1, or in other words, 
-            its value must be descending by exactly 1.
-        </p>
-        <p>
-            So we first send the appropriate sequence of characters into local_88 to satisfy <code>validate</code> before appending an ROP chain.
-            The rop chain looks like this.
-        </p>
-        <pre><code>
+<p>
+    Running <code>checksec</code> on the binary shows that there were no stack canaries, PIE, and NX.
+    Examining <code>main</code>, I can see that there is a massive buffer overflow on <code>local_88</code>, which is
+    exploitable.
+    And from the hint given from the description of the problem, every readable segment is executable, which meant that
+    the GOT table is executable as well.
+    This leads me to think of an exploit where we employ ROP to overwrite the GOT entry of a function with shellcode
+    which summons the shell.
+    But for that to work, <code>main</code> needs to return normally, and for it to return normally,
+    <code>validate</code> needs to return normally,
+    and finally for that to return normally, <code>local_88</code> of <code>main</code> needs to satisfy two conditions.
+    The first is that local_88[0..10] must equal "DREAMHACK!", and the second one is that for i = [11..128], local_88[i]
+    == local[i+1] + 1, or in other words,
+    its value must be descending by exactly 1.
+</p>
+<p>
+    So we first send the appropriate sequence of characters into local_88 to satisfy <code>validate</code> before
+    appending an ROP chain.
+    The rop chain looks like this.
+</p>
+
+{% raw %}
+<pre><code>
 p64(rdi_gadget) + p64(0x0) + 
 p64(rsi_gadget) + p64(memset_got_addr) + p64(0x2) + 
 p64(rdx_gadget) + p64(0x400) + p64(read_plt) + 
 p64(memset_got_addr)
-        </code></pre>
-        <p>
-            Our goal is to call <code>read(0x0, memset's got addr, 0x400)</code> so that we can overwrite the got entry of <code>memset</code> with shellcode.
-            The first three lines do that, and the fourth line returns to the got entry of <code>memset</code>, where our shellcode will be waiting to be executed.
-            The entire exploit code is as below.
-        </p>
-        <pre><code>
+</code></pre>
+{% endraw %}
+
+<p>
+    Our goal is to call <code>read(0x0, memset's got addr, 0x400)</code> so that we can overwrite the got entry of
+    <code>memset</code> with shellcode.
+    The first three lines do that, and the fourth line returns to the got entry of <code>memset</code>, where our
+    shellcode will be waiting to be executed.
+    The entire exploit code is as below.
+</p>
+
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 from pwn import *
 
@@ -119,7 +122,5 @@ def ex():
 
 
 if __name__ == "__main__": ex()
-        </code></pre>
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}

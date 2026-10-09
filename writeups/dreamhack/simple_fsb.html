@@ -1,23 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
+---
+title: simple_fsb
+---
+<p>
+  The problem can be seen <a href="https://dreamhack.io/wargame/writeups/41281">here</a>.<br />
+  It did not provide any soure code for the program so I had to use ghidra to reverse it. Below is the decompiled code
+  of the program.
+</p>
 
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-
-        <p>The problem can be seen <a href="https://dreamhack.io/wargame/writeups/41281">here</a>.<br/>
-            It did not provide any soure code for the program so I had to use ghidra to reverse it. Below is the decompiled code of the program.<p></p>
-        <pre><code>
+{% raw %}
+<pre><code>
 void flag(void)
 
 {
@@ -83,20 +74,28 @@ void main(EVP_PKEY_CTX *param_1)
                     /* WARNING: Subroutine does not return */
   exit(0);
 }
-        </code></pre>
-        <p>
-    The program uses PIE to randomize the location of the code section, the data section, and the uninitialized data section(.bss). 
-    The good news is that these three sections are all guaranteed to be contiguous to each other in the exact same order regardless of PIE. 
-    PIE only randomizes the base of the (code+data+bss) section, so if we can somehow know the address of say the main function, we can know
-    literally everything else(global variables, other function addresses, etc).
-    So from main(), we call flag() by entering '1' to load the contents of the flag file into global variable flag_buf. 
-    Then we call fsb() by entering '2' to abuse the format string bug. With this, we can leak the return address of fsb() which is main + &lt;131&gt;. 
-    We can then get the base address of the (code+data+bss) section by subtracting 131 and main_offset(offset of main from the base). Then finally we add 
-    flag_buf_offset to it to get the actual address of flag_buf. Lastly, we abuse the format string bug once more to print out the bytes at flag_buf as 
-    a string.
-        </p>
-        <p>The exploit code is as below.</p>
-        <pre><code>
+</code></pre>
+{% endraw %}
+<p>
+  The program uses PIE to randomize the location of the code section, the data section, and the uninitialized data
+  section(.bss).
+  The good news is that these three sections are all guaranteed to be contiguous to each other in the exact same order
+  regardless of PIE.
+  PIE only randomizes the base of the (code+data+bss) section, so if we can somehow know the address of say the main
+  function, we can know
+  literally everything else(global variables, other function addresses, etc).
+  So from main(), we call flag() by entering '1' to load the contents of the flag file into global variable flag_buf.
+  Then we call fsb() by entering '2' to abuse the format string bug. With this, we can leak the return address of fsb()
+  which is main + &lt;131&gt;.
+  We can then get the base address of the (code+data+bss) section by subtracting 131 and main_offset(offset of main from
+  the base). Then finally we add
+  flag_buf_offset to it to get the actual address of flag_buf. Lastly, we abuse the format string bug once more to print
+  out the bytes at flag_buf as
+  a string.
+</p>
+<p>The exploit code is as below.</p>
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 from pwn import *
 
@@ -135,7 +134,5 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-        </code></pre>
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}

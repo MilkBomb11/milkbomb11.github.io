@@ -1,22 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/715">here</a>.</p>
-        <p>The source code of the target program is as below</p>
-        <pre><code>
+---
+title: MSNW
+---
+<p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/715">here</a>.</p>
+<p>The source code of the target program is as below</p>
+{% raw %}
+<pre><code>
 /* msnw.c
  * gcc -no-pie -fno-stack-protector -mpreferred-stack-boundary=8 msnw.c -o msnw
 */
@@ -79,22 +67,29 @@ int main(void) {
 
     return 0;
 }
+</code></pre>
+{% endraw %}
 
-        </code></pre>
+<p>
+    Since <code>Meong</code> allows you to overwrite the lower 2 bytes of the SFP, we can think of SFP overwrite attack.
+    Analyzing via gdb we can observe that the SFP of Meong and Nyang are the same, due to the fact that they are both
+    called from <code>Call</code>. Which means that if we somehow leak the SFP of either functions we can get the SFP of
+    the other one.<br>
+    So the exploit will be done in twofolds: first using <code>Nyang</code> to leak the SFP, and then using
+    <code>Meong</code> to overwrite
+    the SFP to the address of <code>buf</code>.<br /> We fill up the buffer with <code>'A'</code> in <code>Meong</code>
+    so that when <code>Nyang</code> is called the SFP will be printed out by <code>printf("%s)</code>.
+    Examining gdb again we can observe that the address of <code>buf</code> is always <code>0x330</code> less than the
+    value of the leaked SFP.
+    So after leaking the SFP, when overwriting the last two bytes of the SFP in <code>Meong</code>, we fill up buf with
+    the address of
+    <code>Win</code> except for the last 2 bytes, which will be the last two bytes of the calculated address of
+    <code>buf</code>.
+    <br>The exploit code is as below.
+</p>
 
-        <p>Since <code>Meong</code> allows you to overwrite the lower 2 bytes of the SFP, we can think of SFP overwrite attack. 
-           Analyzing via gdb we can observe that the SFP of Meong and Nyang are the same, due to the fact that they are both
-           called from <code>Call</code>. Which means that if we somehow leak the SFP of either functions we can get the SFP of the other one.<br>
-           So the exploit will be done in twofolds: first using <code>Nyang</code> to leak the SFP, and then using <code>Meong</code> to overwrite
-           the SFP to the address of <code>buf</code>.<br/> We fill up the buffer with <code>'A'</code> in <code>Meong</code> 
-           so that when <code>Nyang</code> is called the SFP will be printed out by <code>printf("%s)</code>.
-           Examining gdb again we can observe that the address of <code>buf</code> is always <code>0x330</code> less than the value of the leaked SFP.
-           So after leaking the SFP, when overwriting the last two bytes of the SFP in <code>Meong</code>, we fill up buf with the address of 
-           <code>Win</code> except for  the last 2 bytes, which will be the last two bytes of the calculated address of <code>buf</code>. 
-           <br>The exploit code is as below. 
-        </p>
-
-        <pre><code>
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 from pwn import *
 
@@ -118,7 +113,5 @@ def ex():
 
 if __name__ == "__main__": ex()
 
-        </code></pre>
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}

@@ -1,26 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
+---
+title: PIE TIME 2
+---
+<p>You can download the binary <a
+        href="https://challenge-files.picoctf.net/c_rescued_float/f4dce87292c868566835322121dd24ce19106005a91ad728e9554544e2699e22/vuln">here</a>.
+</p>
+<p>The source code is as follows.</p>
 
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>You can download the binary <a href="https://challenge-files.picoctf.net/c_rescued_float/f4dce87292c868566835322121dd24ce19106005a91ad728e9554544e2699e22/vuln">here</a>.</p>
-        <p>The source code is as follows.</p>
-        <pre><code>
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <unistd.h>
+{% raw %}
+<pre><code>
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;signal.h&gt;
+#include &lt;unistd.h&gt;
 
 void segfault_handler() {
   printf("Segfault Occurred, incorrect address.\n");
@@ -73,23 +64,28 @@ int main() {
   call_functions();
   return 0;
 }
-    </code></pre> 
-    <p>Examining the source code I could see that the program had a format string bug in <code>call_functions</code>.</p>
-    <p>Doing a checksec I could see that it used PIE, suggesting I needed to get the base address of the PIE image.</p>
-    <img src="checksec.png" width="300px" height="auto">
-    <p>I reconstructed the stack frame of <code>call_functions</code> when <code>printf</code> was called.</p>
-    <img src="stack.png" width="300px" height="auto">
-    <p>
-        From there I deduced that if I input <code>"%19$p"</code> I could make the program leak the return address of <code>call_functions</code> which would be
-        some location in the the <code>.text</code> section, more specifically somewhere in <code>main</code>. Examining the stack using pwndbg, I could see that the return address was always 0x1441 bytes
-        bigger than PIE base.
-    </p>
-    <img src="gdb_stack.png" width="600px" height="auto">
-    <img src="vmmap.png" width="600px" height="auto">
-    <p>Additionally, disassembling <code>win</code> revealed that it was 0x13a6 bytes away from PIE base.</p>
-    <img src="gdb_win.png" width="400px" height="auto">
-    <p>The exploit code is as below.</p>
-    <pre><code>
+    </code></pre>
+{% endraw %}
+<p>Examining the source code I could see that the program had a format string bug in <code>call_functions</code>.</p>
+<p>Doing a checksec I could see that it used PIE, suggesting I needed to get the base address of the PIE image.</p>
+<img src="checksec.png" width="300px" height="auto">
+<p>I reconstructed the stack frame of <code>call_functions</code> when <code>printf</code> was called.</p>
+<img src="stack.png" width="300px" height="auto">
+<p>
+    From there I deduced that if I input <code>"%19$p"</code> I could make the program leak the return address of
+    <code>call_functions</code> which would be
+    some location in the the <code>.text</code> section, more specifically somewhere in <code>main</code>. Examining the
+    stack using pwndbg, I could see that the return address was always 0x1441 bytes
+    bigger than PIE base.
+</p>
+<img src="gdb_stack.png" width="600px" height="auto">
+<img src="vmmap.png" width="600px" height="auto">
+<p>Additionally, disassembling <code>win</code> revealed that it was 0x13a6 bytes away from PIE base.</p>
+<img src="gdb_win.png" width="400px" height="auto">
+<p>The exploit code is as below.</p>
+
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 from pwn import *
 
@@ -108,7 +104,5 @@ def ex():
     p.interactive() 
 
 if __name__ == "__main__": ex()
-    </code></pre>
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}

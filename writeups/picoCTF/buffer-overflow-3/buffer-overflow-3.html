@@ -1,22 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>The binary can be downloaded <a href="https://artifacts.picoctf.net/c/108/vuln">here</a>.</p>    
-        <p>The source code of the binary is as below.</p>
-        <pre><code>
+---
+title: Buffer Overflow 3
+---
+<p>The binary can be downloaded <a href="https://artifacts.picoctf.net/c/108/vuln">here</a>.</p>
+<p>The source code of the binary is as below.</p>
+{% raw %}
+<pre><code>
 #include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
 #include &lt;string.h&gt;
@@ -97,15 +85,20 @@ int main(int argc, char **argv){
   vuln();
   return 0;
 }
-        </code></pre>
-        <p>I created a diagram of the stack (shown below) by analyzing the disassembly of <code>vuln</code>.</p>
-        <img src="stack.png" width="400px" height="auto">
-        <p>
-            Since the response of the program differed based on whether the canary was corrupted or not, and since the canary was consistent 
-            across processes, I came up with an exploit similar to Blind SQL Injection. The exploit leaks each character of the canary
-            one byte at a time, significantly reducing the number of guesses you have to make compared to a naive brute force approach. 
-        </p>
-        <code><pre>
+</code></pre>
+{% endraw %}
+<p>I created a diagram of the stack (shown below) by analyzing the disassembly of <code>vuln</code>.</p>
+<img src="stack.png" width="400px" height="auto">
+<p>
+  Since the response of the program differed based on whether the canary was corrupted or not, and since the canary was
+  consistent
+  across processes, I came up with an exploit similar to Blind SQL Injection. The exploit leaks each character of the
+  canary
+  one byte at a time, significantly reducing the number of guesses you have to make compared to a naive brute force
+  approach.
+</p>
+{% raw %}
+<code><pre>
 #!/usr/bin/env python3
 from pwn import *
 
@@ -134,7 +127,5 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-        </pre></code>
-    </main>
-</body>
-</html>
+</pre></code>
+{% endraw %}

@@ -1,24 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-       <p>The binary can be downloaded <a href="https://artifacts.picoctf.net/c_rhea/25/vuln">here</a>.</p>
-       <p>Doing a checksec of the binary revealed that it didn't have PIE enabled.</p>
-       <img src="checksec.png" width="400px" height="auto">
-       <p>The source code is of said binary as below.</p>
-       <pre><code>
+---
+title: format string 2
+---
+<p>The binary can be downloaded <a href="https://artifacts.picoctf.net/c_rhea/25/vuln">here</a>.</p>
+<p>Doing a checksec of the binary revealed that it didn't have PIE enabled.</p>
+<img src="checksec.png" width="400px" height="auto">
+<p>The source code is of said binary as below.</p>
+{% raw %}
+<pre><code>
 #include <stdio.h>
 int sus = 0x21737573;
 int main() {
@@ -51,16 +39,21 @@ int main() {
 
   return 0;
 }
-    </code></pre>
-    <p>
-        I could observe that the winning condition was to change the value of global variable <code>sus</code> to 0x67616c66 via the format string bug
-        present. On my first attempt I tried to use the <code>%n</code> format specifier in combination with <code>%d</code> to change the value of 
-        <code>sus</code> in one go, but printing a padding of size 0x67616c66 was proven to be too slow. So I decided to utilize the %hhn specifier to
-        change each byte of sus separately. Below is a diagram of the stack and the payload that I used.
-    </p>
-    <img src="stack.png" width="800px" height="auto">
-    <p>The exploit code is as below.</p> 
-    <code><pre>
+</code></pre>
+{% endraw %}
+<p>
+    I could observe that the winning condition was to change the value of global variable <code>sus</code> to 0x67616c66
+    via the format string bug
+    present. On my first attempt I tried to use the <code>%n</code> format specifier in combination with <code>%d</code>
+    to change the value of
+    <code>sus</code> in one go, but printing a padding of size 0x67616c66 was proven to be too slow. So I decided to
+    utilize the %hhn specifier to
+    change each byte of sus separately. Below is a diagram of the stack and the payload that I used.
+</p>
+<img src="stack.png" width="800px" height="auto">
+<p>The exploit code is as below.</p>
+{% raw %}
+<code><pre>
 #!/usr/bin/python3
 from pwn import *
 
@@ -76,7 +69,5 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-    </pre></code>  
-    </main>
-</body>
-</html>
+    </pre></code>
+{% endraw %}

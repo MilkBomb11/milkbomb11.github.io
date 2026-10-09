@@ -1,22 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/1749">here</a>.</p>
-        <p>The decompilation of the program is as below.</p>
-        <pre><code>
+---
+title: xrop
+---
+<p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/1749">here</a>.</p>
+<p>The decompilation of the program is as below.</p>
+{% raw %}
+<pre><code>
 undefined8 main(void)
 {
   ssize_t inp_len;
@@ -46,18 +34,26 @@ undefined8 main(void)
                     /* WARNING: Subroutine does not return */
   __stack_chk_fail();
 }
-        </code></pre>
-        <p>
-            As you can see, the program performs XOR to contiguous bytes that the user inputted so we need a function which given a string of bytes,
-            returns another string of bytes which, after undergoing the contiguous XORs, will result in the original string of bytes given as input. 
-        </p>
-        <p>
-            The idea for such function comes from this property of XOR: A ^ B ^ B = A. If we extrapolate this to an array of bytes,
-            the array [(A^B^C^...^Z), (B^C^D^...^Z), (C^D^...^Z), ..., (Z)] will become [A, B, C, D, ..., Z] after it has undergone the 
-            consecutive XOR encryption process. So our goal is to create a function which generates [(A^B^C^...^Z), (B^C^D^...^Z), (C^D^...^Z), ..., (Z)]
-            when [A, B, C, D, ..., Z] is given. The implementation of such function in python is as below.
-        </p>
-        <pre><code>
+</code></pre>
+{% endraw %}
+<p>
+    As you can see, the program performs XOR to contiguous bytes that the user inputted so we need a function which
+    given a string of bytes,
+    returns another string of bytes which, after undergoing the contiguous XORs, will result in the original string of
+    bytes given as input.
+</p>
+<p>
+    The idea for such function comes from this property of XOR: A ^ B ^ B = A. If we extrapolate this to an array of
+    bytes,
+    the array [(A^B^C^...^Z), (B^C^D^...^Z), (C^D^...^Z), ..., (Z)] will become [A, B, C, D, ..., Z] after it has
+    undergone the
+    consecutive XOR encryption process. So our goal is to create a function which generates [(A^B^C^...^Z),
+    (B^C^D^...^Z), (C^D^...^Z), ..., (Z)]
+    when [A, B, C, D, ..., Z] is given. The implementation of such function in python is as below.
+</p>
+
+{% raw %}
+<pre><code>
 def xor_slice (arr:bytes, start:int, end:int):
     col = arr[start]
     for i in range(start+1, end):
@@ -75,27 +71,33 @@ def xor_decode (arr:bytes) -> bytes:
     for i in range(1, arr.__len__()):
         res += p8(arr[i-1] ^ arr[i])
     return res
-        </code></pre>
-        <p>
-            The function <code>xor_encode</code> encodes the array of bytes so that it can be decoded by the program. <code>xor_decode</code> was added
-            to check whether the <code>xor_encode</code> functioned properly.  
-        </p>
-        <p> The stack of <code>main</code> is as below. </p>
-        <img src="stack.png" width="400px" height="auto">
-        <p>
-            Checking for ROP gadgets of the program resulted in absolutely nothing, so we need to use the ROP gadgets present in libc.
-        </p>
-        <img src="rop_results.png">
-        <p>
-            Using pwndbg, we can see that the return address of main has an offset of <code>0x29d90</code> from the base of libc.
-        </p>
-        <img src="vmmap.png"> <img src="offset.png">
-        <p>
-            So in the exploit, we first leak the canary and return address of <code>main</code>, and then use that to get the
-            base of libc and the necessary ROP gadgets. And finally, we use the ROP gadgets to call <code>system("/bin/sh")</code>.
-            The exploit code is as below.
-        </p>
-        <pre><code>
+</code></pre>
+{% endraw %}
+<p>
+    The function <code>xor_encode</code> encodes the array of bytes so that it can be decoded by the program.
+    <code>xor_decode</code> was added
+    to check whether the <code>xor_encode</code> functioned properly.
+</p>
+<p> The stack of <code>main</code> is as below. </p>
+<img src="stack.png" width="400px" height="auto">
+<p>
+    Checking for ROP gadgets of the program resulted in absolutely nothing, so we need to use the ROP gadgets present in
+    libc.
+</p>
+<img src="rop_results.png">
+<p>
+    Using pwndbg, we can see that the return address of main has an offset of <code>0x29d90</code> from the base of
+    libc.
+</p>
+<img src="vmmap.png"> <img src="offset.png">
+<p>
+    So in the exploit, we first leak the canary and return address of <code>main</code>, and then use that to get the
+    base of libc and the necessary ROP gadgets. And finally, we use the ROP gadgets to call
+    <code>system("/bin/sh")</code>.
+    The exploit code is as below.
+</p>
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 from pwn import *
 
@@ -158,7 +160,5 @@ def ex():
 
 
 if __name__ == "__main__": ex()
-        </code></pre>
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}

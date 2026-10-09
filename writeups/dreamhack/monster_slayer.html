@@ -1,22 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/2323">here</a>.</p>
-        <p>The source code of the program is as below.</p>
-        <pre><code>
+---
+title: Monster Slayer
+---
+<p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/2323">here</a>.</p>
+<p>The source code of the program is as below.</p>
+{% raw %}
+<pre><code>
 // compile: gcc -o chall chall.c -no-pie -Wl,-z,relro,-z,now
 #include &lt;stdio.h>
 #include &lt;stdlib.h>
@@ -315,16 +303,27 @@ int main() {
 
     return 0;
 }
-        </code></pre> 
-        <p>The size of a <code>Character</code> struct is 88 bytes and the size of a <code>Monster</code> struct is 80 bytes. 
-            We can observe a UAF bug since the size of the chunk needed for <code>Character</code> is <code>96(88 + 8(metadata))</code>
-            bytes and that of <code>Monster</code> is also <code>96(80+8(metadata)+8(alignment))</code>. Due to an oversight of the program,
-            <code>generate_monster</code> doesn't actually overwrite the <code>skill</code> field of the monster if the monster is preoccupied
-            with a value. So, we can exploit this oversight by first creating a character with the address to <code>win</code> at the end of its
-            description, freeing it, and then allocating a monster. The <code>skill</code> field of monster will point to <code>win</code> in
-            actuality and when <code>m->skill()</code> is invoked in <code>slay_monster()</code>, the shell will pop up. The exploit code is as below.
-        </p>
-        <pre><code>
+</code></pre>
+{% endraw %}
+
+<p>
+    The size of a <code>Character</code> struct is 88 bytes and the size of a <code>Monster</code> struct is 80 bytes.
+    We can observe a UAF bug since the size of the chunk needed for <code>Character</code> is
+    <code>96(88 + 8(metadata))</code>
+    bytes and that of <code>Monster</code> is also <code>96(80+8(metadata)+8(alignment))</code>. Due to an oversight of
+    the program,
+    <code>generate_monster</code> doesn't actually overwrite the <code>skill</code> field of the monster if the monster
+    is preoccupied
+    with a value. So, we can exploit this oversight by first creating a character with the address to <code>win</code>
+    at the end of its
+    description, freeing it, and then allocating a monster. The <code>skill</code> field of monster will point to
+    <code>win</code> in
+    actuality and when <code>m->skill()</code> is invoked in <code>slay_monster()</code>, the shell will pop up. The
+    exploit code is as below.
+</p>
+
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 from pwn import *
 
@@ -353,8 +352,5 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-
-        </code></pre>
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}

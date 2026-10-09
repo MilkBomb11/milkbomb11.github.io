@@ -1,28 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>
-            Here are the links to the 
-            <a href="https://artifacts.picoctf.net/c_rhea/1/format-string-3">binary</a>, 
-            <a href="https://artifacts.picoctf.net/c_rhea/1/libc.so.6">libc</a>, and 
-            <a href="https://artifacts.picoctf.net/c_rhea/1/ld-linux-x86-64.so.2">linker</a> 
-            needed for the problem.
-        </p>
-        <p>The source code of the binary is as below.</p>
-        <pre><code>
+---
+title: format string 3
+---
+<p>
+    Here are the links to the
+    <a href="https://artifacts.picoctf.net/c_rhea/1/format-string-3">binary</a>,
+    <a href="https://artifacts.picoctf.net/c_rhea/1/libc.so.6">libc</a>, and
+    <a href="https://artifacts.picoctf.net/c_rhea/1/ld-linux-x86-64.so.2">linker</a>
+    needed for the problem.
+</p>
+<p>The source code of the binary is as below.</p>
+{% raw %}
+<pre><code>
 #include &lt;stdio.h&gt;
 #define MAX_STRINGS 32
 
@@ -53,30 +41,41 @@ int main() {
 
 	return 0;
 }
-        </code></pre>
-        <p>
-            Since <code>normal_string</code> is "/bin/sh", I realized if I could overwrite the .got.plt entry of <code>puts</code> 
-            with the address of <code>system</code> then I could gain shell access. Doing a quick checksec revealed that the binary
-            doesn't utilize PIE, meaning that the address to the .got.plt is fixed. And as you can see in the source code, the program
-            provides the address of <code>setvbuf</code>, making it trivial to gain the runtime address of libc base and additionally the address of
-            <code>system</code>.
-        </p>
-        <img src="checksec.png" width="300px" height="auto"> 
-        <p>Below is the diagram of the stack when <code>printf(buf)</code> is called.</p>
-        <img src="stack.png" width="400px", height="auto">
-        <p>
-            I used the format string bug present to overwrite the .got.plt entry of <code>puts</code>. However, since the address of <code>system</code>
-            changes every time the program runs, I had to first sort each byte of the address from smallest to largest, create a dictionary mapping
-            each byte to its original index in the byte string, calculate the difference between neighboring sorted bytes, and then construct an algorithm which
-            generates the payload that overwrites the.got.plt entry correctly using a combination of <code>%d</code>s and <code>%hhn</code>s.
-            Below is what the buffer looks like after the algorithm is run. 
-        </p>
-        <img src="buffer.png" width="600px" height="auto">
-        <p>
-            The exploit code is as below. I used the format <code>%6$***d</code> where <code>*</code> represents a digit becauase the 6th positional argument
-            of <code>printf</code> was guaranteed to be 0, based on the source code.
-        </p>
-        <pre><code>
+</code></pre>
+{% endraw %}
+<p>
+    Since <code>normal_string</code> is "/bin/sh", I realized if I could overwrite the .got.plt entry of
+    <code>puts</code>
+    with the address of <code>system</code> then I could gain shell access. Doing a quick checksec revealed that the
+    binary
+    doesn't utilize PIE, meaning that the address to the .got.plt is fixed. And as you can see in the source code, the
+    program
+    provides the address of <code>setvbuf</code>, making it trivial to gain the runtime address of libc base and
+    additionally the address of
+    <code>system</code>.
+</p>
+<img src="checksec.png" width="300px" height="auto">
+<p>Below is the diagram of the stack when <code>printf(buf)</code> is called.</p>
+<img src="stack.png" width="400px" , height="auto">
+<p>
+    I used the format string bug present to overwrite the .got.plt entry of <code>puts</code>. However, since the
+    address of <code>system</code>
+    changes every time the program runs, I had to first sort each byte of the address from smallest to largest, create a
+    dictionary mapping
+    each byte to its original index in the byte string, calculate the difference between neighboring sorted bytes, and
+    then construct an algorithm which
+    generates the payload that overwrites the.got.plt entry correctly using a combination of <code>%d</code>s and
+    <code>%hhn</code>s.
+    Below is what the buffer looks like after the algorithm is run.
+</p>
+<img src="buffer.png" width="600px" height="auto">
+<p>
+    The exploit code is as below. I used the format <code>%6$***d</code> where <code>*</code> represents a digit
+    becauase the 6th positional argument
+    of <code>printf</code> was guaranteed to be 0, based on the source code.
+</p>
+{% raw %}
+<pre><code>
 #!/usr/bin/python3
 from pwn import *
 
@@ -118,7 +117,5 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-        </code></pre>
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}

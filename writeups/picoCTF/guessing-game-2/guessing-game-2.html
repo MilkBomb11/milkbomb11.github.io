@@ -1,25 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>
-            The binary can be downloaded 
-            <a href="https://challenge-files.picoctf.net/c_shape_facility/473c778da5ccea32ab115228f84b182c3f0e1cf42bf3beb7445e8674f79c5083/vuln">here</a>.
-        </p> 
-        <p>The source code of the binary is as shown below.</p>
-        <pre><code>
+---
+title: Guessing Game 2
+---
+<p>
+    The binary can be downloaded
+    <a
+        href="https://challenge-files.picoctf.net/c_shape_facility/473c778da5ccea32ab115228f84b182c3f0e1cf42bf3beb7445e8674f79c5083/vuln">here</a>.
+</p>
+<p>The source code of the binary is as shown below.</p>
+{% raw %}
+<pre><code>
 #include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
 #include &lt;unistd.h&gt;
@@ -89,32 +78,41 @@ int main(int argc, char **argv){
 	
 	return 0;
 }
-        </code></pre>
-        <p>
-            As you can see from the source code above, there is a buffer overflow vulnerability and a format string bug in <code>win</code>. 
-            Running checksec, I noticed that PIE was not enabled and that the binary's target architecture was 32 bits. Additionally, a stack
-            canary was detected.
-        </p>
-        <img src="checksec.png" width="400px" height="auto">
-        <p>
-            I disassembled <code>win</code> to see if it had a canary, and sure enough, it had one. Therefore, before I performed a buffer overflow
-            attack on <code>win</code>, I had to use the format string bug to leak the canary. Shown below is a diagram of the stack when
-            <code>win</code> is called.
-        </p>
-        <img src="stack.png" width="300px" height="auto">
-        <p>
-            After leaking the canary, I discovered that the binary had a few gadgets as shown below. So I wrote an exploit script which injected an 
-            ROP chain that would leak the GOT entries of <code>puts</code>, <code>printf</code>, and <code>gets</code>. 
-            I determined that the server was using <code>libc6-i386_2.27-3ubuntu1.6_amd64.so</code> by plugging the 
-            leaked entries into <a href="https://libc.rip/">libc.rip</a>.
-        </p>
-        <img src="ropgadgets.png" width="400px" height="auto">
-        <p> 
-            Since I now knew the version of libc the binary was running on, I could obtain the libc base, and moreover, the runtime 
-            address of <code>execve</code>. I then constructed an ROP chain that called <code>execve("/bin/sh", NULL, NULL)</code>. 
-        </p>
-        <p>The exploit code is as follows.</p>
-        <pre><code>
+</code></pre>
+{% endraw %}
+<p>
+    As you can see from the source code above, there is a buffer overflow vulnerability and a format string bug in
+    <code>win</code>.
+    Running checksec, I noticed that PIE was not enabled and that the binary's target architecture was 32 bits.
+    Additionally, a stack
+    canary was detected.
+</p>
+<img src="checksec.png" width="400px" height="auto">
+<p>
+    I disassembled <code>win</code> to see if it had a canary, and sure enough, it had one. Therefore, before I
+    performed a buffer overflow
+    attack on <code>win</code>, I had to use the format string bug to leak the canary. Shown below is a diagram of the
+    stack when
+    <code>win</code> is called.
+</p>
+<img src="stack.png" width="300px" height="auto">
+<p>
+    After leaking the canary, I discovered that the binary had a few gadgets as shown below. So I wrote an exploit
+    script which injected an
+    ROP chain that would leak the GOT entries of <code>puts</code>, <code>printf</code>, and <code>gets</code>.
+    I determined that the server was using <code>libc6-i386_2.27-3ubuntu1.6_amd64.so</code> by plugging the
+    leaked entries into <a href="https://libc.rip/">libc.rip</a>.
+</p>
+<img src="ropgadgets.png" width="400px" height="auto">
+<p>
+    Since I now knew the version of libc the binary was running on, I could obtain the libc base, and moreover, the
+    runtime
+    address of <code>execve</code>. I then constructed an ROP chain that called
+    <code>execve("/bin/sh", NULL, NULL)</code>.
+</p>
+<p>The exploit code is as follows.</p>
+{% raw %}
+<pre><code>
 #!/usr/bin/env python3
 from pwn import *
 
@@ -179,6 +177,4 @@ def ex():
 
 if __name__ == "__main__": ex()
         </code></pre>
-    </main>
-</body>
-</html>
+{% endraw %}

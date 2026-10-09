@@ -1,28 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>milkbomb11</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-
-    <header>
-        <h1>milkbomb11</h1>
-        <a href="/index.html">[to index]</a>
-    </header>
-
-    <main>
-        <p>
-            The problem provides a 
-            <a href="https://artifacts.picoctf.net/picoMini+by+redpwn/Binary+Exploitation/fermat-strings/chall">binary</a>
-            and a 
-            <a href="https://artifacts.picoctf.net/picoMini+by+redpwn/Binary+Exploitation/fermat-strings/Dockerfile">Dockerfile</a>
-            .
-        </p> 
-        <p>The source code of the binary is as shown below.</p>
-        <pre><code>
+---
+title: fermat-strings
+---
+<p>
+    The problem provides a
+    <a href="https://artifacts.picoctf.net/picoMini+by+redpwn/Binary+Exploitation/fermat-strings/chall">binary</a>
+    and a
+    <a
+        href="https://artifacts.picoctf.net/picoMini+by+redpwn/Binary+Exploitation/fermat-strings/Dockerfile">Dockerfile</a>
+    .
+</p>
+<p>The source code of the binary is as shown below.</p>
+{% raw %}
+<pre><code>
 #include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
 #include &lt;string.h&gt;
@@ -74,37 +63,46 @@ int main(void)
 
   if(answer != -1) printf("Found the answer: %d\n", answer);
 }
-        </code></pre>
-        <p>
-            As you can see in the source code, there is a format string bug at <code>printf(buffer)</code>. 
-            Running checksec I noticed that the program didn't have PIE enabled, meaning that the PIE base was fixed,
-            and that Partial RELRO was enabled, meaning that the <code>.got.plt</code> section was writable.
-        </p>
-        <img src="checksec.png" width="400px" height="auto">
-        <p>
-            I suspected that I would have to abuse the format string bug multiple times to get the flag, but the program didn't loop.
-            Luckily, since the GOT was writable, I crafted a payload which used the format string bug to overwrite the GOT entry of
-            <code>pow</code> with the address of <code>main</code>. This way every time the program called <code>pow</code> it instead
-            recursively called <code>main</code>, creating an infinite loop. 
-        </p> 
-        <img src="got.png" width="600px" height="auto">
-        <p>
-            Right after the call to <code>pow</code> (which is the second call to <code>main</code>), the stack looked like the diagram below.
-        </p>
-        <img src="stack.png" width="300px" height="auto">
-        <p>
-            I obtained the libc base by leaking the return address on the top of the stack, which would hold an address to somewhere in libc.
-            Disassembling <code>__libc_start_main</code> of the libc from the provided Dockerfile, I figured out the offset between the return address
-            and the libc base, and finally calculated the base address. 
-        </p>
-        <img src="libc.png" width="600px" height="auto">
-        <p>
-            I then scanned the provided libc with one_gadget and wrote an algorithm that used the format string bug to overwrite the GOT entry of
-            <code>puts</code> with the runtime address of any gadget. The second one worked. 
-        </p>
-        <img src="onegadgets.png" width="400px" height="auto"> 
-        <p>The exploit code is as below.</p>
-        <pre><code>
+</code></pre>
+{% endraw %}
+<p>
+    As you can see in the source code, there is a format string bug at <code>printf(buffer)</code>.
+    Running checksec I noticed that the program didn't have PIE enabled, meaning that the PIE base was fixed,
+    and that Partial RELRO was enabled, meaning that the <code>.got.plt</code> section was writable.
+</p>
+<img src="checksec.png" width="400px" height="auto">
+<p>
+    I suspected that I would have to abuse the format string bug multiple times to get the flag, but the program didn't
+    loop.
+    Luckily, since the GOT was writable, I crafted a payload which used the format string bug to overwrite the GOT entry
+    of
+    <code>pow</code> with the address of <code>main</code>. This way every time the program called <code>pow</code> it
+    instead
+    recursively called <code>main</code>, creating an infinite loop.
+</p>
+<img src="got.png" width="600px" height="auto">
+<p>
+    Right after the call to <code>pow</code> (which is the second call to <code>main</code>), the stack looked like the
+    diagram below.
+</p>
+<img src="stack.png" width="300px" height="auto">
+<p>
+    I obtained the libc base by leaking the return address on the top of the stack, which would hold an address to
+    somewhere in libc.
+    Disassembling <code>__libc_start_main</code> of the libc from the provided Dockerfile, I figured out the offset
+    between the return address
+    and the libc base, and finally calculated the base address.
+</p>
+<img src="libc.png" width="600px" height="auto">
+<p>
+    I then scanned the provided libc with one_gadget and wrote an algorithm that used the format string bug to overwrite
+    the GOT entry of
+    <code>puts</code> with the runtime address of any gadget. The second one worked.
+</p>
+<img src="onegadgets.png" width="400px" height="auto">
+<p>The exploit code is as below.</p>
+{% raw %}
+<pre><code>
 #!/usr/bin/env python3
 from pwn import *
 
@@ -168,7 +166,5 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-        </code></pre>
-    </main>
-</body>
-</html>
+</code></pre>
+{% endraw %}
