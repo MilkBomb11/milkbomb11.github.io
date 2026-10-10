@@ -3,9 +3,8 @@ title: format string 1
 ---
 <p>The binary can be downloaded <a href="https://artifacts.picoctf.net/c_mimas/82/format-string-1">here</a>.</p>
 <p>The source code is as below.</p>
-{% raw %}
-<pre><code>
-#include &lt; stdio.h &gt;
+{% highlight c %}
+#include < stdio.h >
 int main() {
   char buf[1024];
   char secret1[64];
@@ -47,8 +46,7 @@ int main() {
 
   return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     From the source code and the disassembly I could reconstruct the stack just when <code>printf(buf)</code> was called
     as below.
@@ -65,8 +63,7 @@ int main() {
     another
     script which leaks the flag in one go.
 </p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -87,10 +84,8 @@ def ex():
     print(acc)
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
-{% raw %}
-<pre><code>
+{% endhighlight %}
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -108,5 +103,4 @@ def ex():
     print(b"".join(r))
     
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

@@ -9,8 +9,7 @@ title: Binary Gauntlet 3
         href="https://challenge-files.picoctf.net/c_wily_courier/4e11fc837bac7289d9fd062c4c678ac71af390b44080ed68fd60427b11e96107/libc-2.27.so">here</a>.
 </p>
 <p>The source code wasn't provided so I had to decompile the binary as below.</p>
-{% raw %}
-<pre><code>
+{% highlight c %}
 undefined8 main(void)
 {
   char local_78 [104];
@@ -25,9 +24,8 @@ undefined8 main(void)
   local_10[999] = '\0';
   strcpy(local_78,local_10);
   return 0;
-} 
-</code></pre>
-{% endraw %}
+}
+{% endhighlight %}
 <p>
     Running a checksec, I could see that the stack was unexecutable and NX was enabled.
     I thought of abusing the fact that PIE was not enabled and injecting an ROP chain, but there was no way to overwrite
@@ -50,8 +48,7 @@ undefined8 main(void)
     the image below.</p>
 <img src="onegadget.png" width="800px" height="auto">
 <p>The exploit code is as below.</p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -66,5 +63,4 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

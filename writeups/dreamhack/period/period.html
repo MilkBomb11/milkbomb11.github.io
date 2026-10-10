@@ -9,8 +9,7 @@ title: period
 </p>
 <img src="checksec.png">
 <p>The decompilation results are as below.</p>
-{% raw %}
-<pre><code>
+{% highlight c %}
 undefined8 main(void)
 {
   run();
@@ -40,7 +39,7 @@ void run(void)
       if (iVar1 != 3) break;
       cleara(local_118,0x100);
     }
-    if (3 &lt; iVar1) break;
+    if (3 < iVar1) break;
     if (iVar1 == 1) {
       writeln("Read: .");
       writeln(local_118);
@@ -103,14 +102,13 @@ void readln(long param_1)
   int local_c;
   
   for (local_c = 0;
-      (local_c &lt; 0x100 &&
+      (local_c < 0x100 &&
       (read(0,(void *)(param_1 + local_c),1), *(char *)(param_1 + local_c) != '.'));
       local_c = local_c + 1) {
   }
   return;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
   From the code we can conclude that a buffer overflow vulnerability exists at <code>readint</code>
   (the size of the buffer is 24 bytes but it accepts 100 bytes of input). We can also reconstruct the stack of
@@ -140,8 +138,7 @@ void readln(long param_1)
 
 <p>The exploit code is as below.</p>
 
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -185,5 +182,4 @@ def ex():
 
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

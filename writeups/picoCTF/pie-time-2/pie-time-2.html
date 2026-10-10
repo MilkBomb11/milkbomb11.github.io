@@ -6,12 +6,11 @@ title: PIE TIME 2
 </p>
 <p>The source code is as follows.</p>
 
-{% raw %}
-<pre><code>
-#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
-#include &lt;signal.h&gt;
-#include &lt;unistd.h&gt;
+{% highlight c %}
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
 
 void segfault_handler() {
   printf("Segfault Occurred, incorrect address.\n");
@@ -64,8 +63,7 @@ int main() {
   call_functions();
   return 0;
 }
-    </code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>Examining the source code I could see that the program had a format string bug in <code>call_functions</code>.</p>
 <p>Doing a checksec I could see that it used PIE, suggesting I needed to get the base address of the PIE image.</p>
 <img src="checksec.png" width="300px" height="auto">
@@ -84,8 +82,7 @@ int main() {
 <img src="gdb_win.png" width="400px" height="auto">
 <p>The exploit code is as below.</p>
 
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -104,5 +101,4 @@ def ex():
     p.interactive() 
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

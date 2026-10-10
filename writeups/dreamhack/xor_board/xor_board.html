@@ -3,15 +3,14 @@ title: XOR Board
 ---
 <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/1211">here</a>.</p>
 <p>The source code of the target program is as below.</p>
-{% raw %}
-<pre><code>
+{% highlight c %}
 // gcc -o main main.c -Wl,-z,norelro
 
-#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
-#include &lt;stdint.h&gt;
-#include &lt;unistd.h&gt;
-#include &lt;fcntl.h&gt;
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 uint64_t arr[64] = {0};
 
@@ -65,8 +64,7 @@ int main() {
 
     return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     Running checksec, I could see that the program had everything enabled except for RELRO,
     suggesting that I could perform a GOT table overwrite attack.
@@ -111,8 +109,7 @@ int main() {
     called.
 </p>
 <p>The exploit code is as below.</p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -184,5 +181,4 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

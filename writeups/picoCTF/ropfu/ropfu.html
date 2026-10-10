@@ -3,13 +3,12 @@ title: ropfu
 ---
 <p>The binary can be downloaded <a href="https://artifacts.picoctf.net/c/43/vuln">here</a>.</p>
 <p>The source code of the binary is as below.</p>
-{% raw %}
-<pre><code>
-#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
-#include &lt;string.h&gt;
-#include &lt;unistd.h&gt;
-#include &lt;sys/types.h&gt;
+{% highlight c %}
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
 
 #define BUFSIZE 16
 
@@ -31,9 +30,8 @@ int main(int argc, char **argv){
   setresgid(gid, gid, gid);
   vuln();
   
-}     
-</code></pre>
-{% endraw %}
+}
+{% endhighlight %}
 <p>
     As you can see from the source code, this problem has a buffer overflow vulnerability in <code>vuln</code>.
     Running checksec showed that PIE was not enabled, meaning that I could potentially use ROP.
@@ -63,8 +61,7 @@ int main(int argc, char **argv){
 </p>
 <img src="ropchain.png" width="100%" height="auto">
 <p>The exploit code is shown below.</p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/env python3
 from pwn import *
 
@@ -98,5 +95,4 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

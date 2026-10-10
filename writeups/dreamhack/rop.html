@@ -6,13 +6,12 @@ title: rop
     The source code of the target program is as below.
 </p>
 
-{% raw %}
-<pre><code>
+{% highlight c %}
 // Name: rop.c
 // Compile: gcc -o rop rop.c -fno-PIE -no-pie
 
-#include &lt;stdio.h&gt;
-#include &lt;unistd.h&gt;
+#include <stdio.h>
+#include <unistd.h>
 
 int main() {
   char buf[0x30];
@@ -33,8 +32,7 @@ int main() {
 
   return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 
 <p> This problem can be split into the following two phases</p>
 <p>[1] canary leakage</p>
@@ -96,8 +94,7 @@ int main() {
 </p>
 <p> The exploit code is as below. </p>
 
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -149,5 +146,4 @@ def exploit():
 
 
 if __name__ == "__main__": exploit()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

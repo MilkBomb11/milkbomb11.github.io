@@ -5,8 +5,7 @@ title: format string 2
 <p>Doing a checksec of the binary revealed that it didn't have PIE enabled.</p>
 <img src="checksec.png" width="400px" height="auto">
 <p>The source code is of said binary as below.</p>
-{% raw %}
-<pre><code>
+{% highlight c %}
 #include <stdio.h>
 int sus = 0x21737573;
 int main() {
@@ -39,8 +38,7 @@ int main() {
 
   return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     I could observe that the winning condition was to change the value of global variable <code>sus</code> to 0x67616c66
     via the format string bug

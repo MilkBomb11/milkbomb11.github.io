@@ -9,9 +9,8 @@ title: format string 3
     needed for the problem.
 </p>
 <p>The source code of the binary is as below.</p>
-{% raw %}
-<pre><code>
-#include &lt;stdio.h&gt;
+{% highlight c %}
+#include <stdio.h>
 #define MAX_STRINGS 32
 
 char *normal_string = "/bin/sh";
@@ -41,8 +40,7 @@ int main() {
 
 	return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     Since <code>normal_string</code> is "/bin/sh", I realized if I could overwrite the .got.plt entry of
     <code>puts</code>
@@ -74,8 +72,7 @@ int main() {
     becauase the 6th positional argument
     of <code>printf</code> was guaranteed to be 0, based on the source code.
 </p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -117,5 +114,4 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

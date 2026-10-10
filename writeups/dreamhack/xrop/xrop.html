@@ -3,8 +3,7 @@ title: xrop
 ---
 <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/1749">here</a>.</p>
 <p>The decompilation of the program is as below.</p>
-{% raw %}
-<pre><code>
+{% highlight c %}
 undefined8 main(void)
 {
   ssize_t inp_len;
@@ -21,7 +20,7 @@ undefined8 main(void)
   do {
     printf("Input: ");
     inp_len = read(0,buf,0x100);
-    for (i = 1; i &lt; (int)inp_len; i = i + 1) {
+    for (i = 1; i < (int)inp_len; i = i + 1) {
       buf[i + -1] = buf[i] ^ buf[i + -1];
     }
     printf("You entered: %s\n",buf);
@@ -34,8 +33,7 @@ undefined8 main(void)
                     /* WARNING: Subroutine does not return */
   __stack_chk_fail();
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     As you can see, the program performs XOR to contiguous bytes that the user inputted so we need a function which
     given a string of bytes,
@@ -52,8 +50,7 @@ undefined8 main(void)
     when [A, B, C, D, ..., Z] is given. The implementation of such function in python is as below.
 </p>
 
-{% raw %}
-<pre><code>
+{% highlight python %}
 def xor_slice (arr:bytes, start:int, end:int):
     col = arr[start]
     for i in range(start+1, end):
@@ -71,8 +68,7 @@ def xor_decode (arr:bytes) -> bytes:
     for i in range(1, arr.__len__()):
         res += p8(arr[i-1] ^ arr[i])
     return res
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     The function <code>xor_encode</code> encodes the array of bytes so that it can be decoded by the program.
     <code>xor_decode</code> was added
@@ -96,8 +92,7 @@ def xor_decode (arr:bytes) -> bytes:
     <code>system("/bin/sh")</code>.
     The exploit code is as below.
 </p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -160,5 +155,4 @@ def ex():
 
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

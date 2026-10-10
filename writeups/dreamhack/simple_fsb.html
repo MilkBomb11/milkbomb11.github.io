@@ -7,8 +7,7 @@ title: simple_fsb
   of the program.
 </p>
 
-{% raw %}
-<pre><code>
+{% highlight c %}
 void flag(void)
 
 {
@@ -62,7 +61,7 @@ void main(EVP_PKEY_CTX *param_1)
     printf("> ");
     __isoc99_scanf(&"%d",&cmd);
     if (cmd == 3) break;
-    if (cmd &lt; 4) {
+    if (cmd < 4) {
       if (cmd == 1) {
         flag();
       }
@@ -74,8 +73,7 @@ void main(EVP_PKEY_CTX *param_1)
                     /* WARNING: Subroutine does not return */
   exit(0);
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
   The program uses PIE to randomize the location of the code section, the data section, and the uninitialized data
   section(.bss).
@@ -94,8 +92,7 @@ void main(EVP_PKEY_CTX *param_1)
   a string.
 </p>
 <p>The exploit code is as below.</p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -134,5 +131,4 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

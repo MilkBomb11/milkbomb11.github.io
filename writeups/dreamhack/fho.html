@@ -3,8 +3,7 @@ title: fho
 ---
 <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/355">here</a>.</p>
 <p>The source code of the target program is as below</p>
-{% raw %}
-<pre><code>
+{% highlight c %}
 // Name: fho.c
 // Compile: gcc -o fho fho.c
 
@@ -40,8 +39,7 @@ int main() {
 
   return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 
 <p>
     My first instinct was to leak the canary and overwrite the return address, but then i realized I don't need to
@@ -57,8 +55,7 @@ int main() {
 </p>
 <p>The exploit code is as below.</p>
 
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -83,5 +80,4 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

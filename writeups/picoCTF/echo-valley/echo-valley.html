@@ -7,11 +7,10 @@ title: Echo Valley
 </p>
 <p>The source code of the binary is as below.</p>
 
-{% raw %}
-<pre><code>
-#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
-#include &lt;string.h&gt;
+{% highlight c %}
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 void print_flag() {
     char buf[32];
@@ -58,8 +57,7 @@ int main()
     echo_valley();
     return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     Looking at the source code, I identified that there was a format string bug in <code>printf(buf)</code> which I
     could exploit.
@@ -92,8 +90,7 @@ int main()
 </p>
 <img src="buffer.png" width="600px" height="auto">
 <p>The exploit code is as below.</p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -125,5 +122,4 @@ def ex():
     p.interactive() 
 
 if __name__ == "__main__": ex()
-        </code></pre>
-{% endraw %}
+{% endhighlight %}

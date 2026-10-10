@@ -6,13 +6,12 @@ title: Guessing Game 1
         href="https://challenge-files.picoctf.net/c_shape_facility/f8911c5b34d46a3987ddc797ddb35668fd9f3e0700864d66942535cb775d4e47/vuln">here</a>.
 </p>
 <p>The source code of the problem and the Makefile that came along with it is as below.</p>
-{% raw %}
-<pre><code>
-#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
-#include &lt;unistd.h&gt;
-#include &lt;sys/types.h&gt;
-#include &lt;sys/stat.h&gt;
+{% highlight c %}
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #define BUFSIZE 100
 
@@ -74,18 +73,15 @@ int main(int argc, char **argv){
 	
 	return 0; 
 }
-        </code></pre>
-{% endraw %}
+{% endhighlight %}
 
-{% raw %}
-<pre><code>
+{% highlight c %}
 all:
 	gcc -m64 -fno-stack-protector -O0 -no-pie -static -o vuln vuln.c
 
 clean:
 	rm vuln
-</code></pre>
-{% endraw %}
+{% endhighlight %}
 <p>
     As you can see from the Makefile above, the program was compiled with no stack protectors and no PIE enabled. And
     indeed by running checksec I could
@@ -117,8 +113,7 @@ clean:
 </p>
 <img src="gadgets.png" width="600px" height="auto">
 <p>The exploit code is as below.</p>
-{% raw %}
-<pre><code>
+{% highlight python %}
 #!/usr/bin/env python3
 from pwn import *
 from ctypes import CDLL
@@ -162,5 +157,4 @@ def ex():
     p.interactive()
 
 if __name__ == "__main__": ex()
-</code></pre>
-{% endraw %}
+{% endhighlight %}
